@@ -133,6 +133,8 @@ class FixRxApplication {
     this.setupConsumerRoutes();
     this.setupSearchRoutes();
     this.setupCommunicationRoutes();
+    this.setupContactRoutes();
+    this.setupInvitationRoutes();
     this.setupMonitoringRoutes();
     this.setupSystemRoutes();
     this.setupMobileAppRoutes();
@@ -468,6 +470,18 @@ class FixRxApplication {
         });
       }
     });
+  }
+
+  setupContactRoutes() {
+    // Contact Management Routes
+    const contactRoutes = require('./routes/contactRoutes');
+    this.app.use('/api/v1/contacts', contactRoutes);
+  }
+
+  setupInvitationRoutes() {
+    // Invitation Management Routes
+    const invitationRoutes = require('./routes/invitationRoutes');
+    this.app.use('/api/v1/invitations', invitationRoutes);
   }
 
   setupCommunicationRoutes() {

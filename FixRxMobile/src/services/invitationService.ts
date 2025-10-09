@@ -1,8 +1,9 @@
 /**
- * Invitation Service for FixRx Mobile
- * Non-intrusive invitation service with fallback to mock data
+ * Enhanced Invitation Service for FixRx Mobile
+ * Comprehensive invitation management with contact integration
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiClient, ApiResponse } from './apiClient';
 import { API_ENDPOINTS } from '../config/api';
 
