@@ -7,19 +7,19 @@
 **A comprehensive platform connecting consumers with trusted contractors and service providers**
 
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
+[![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-yellow.svg)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 [![React](https://img.shields.io/badge/React-18+-61DAFB.svg)](https://reactjs.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg)](https://www.postgresql.org/)
-[![Redis](https://img.shields.io/badge/Redis-7+-DC382D.svg)](https://redis.io/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-336791.svg)](https://www.postgresql.org/)
+[![SendGrid](https://img.shields.io/badge/SendGrid-Email-blue.svg)](https://sendgrid.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[Features](#-features) • [Tech Stack](#-tech-stack) • [Quick Start](#-quick-start) • [API Documentation](#-api-documentation) • [Contributing](#-contributing)
+[Features](#-features) • [Tech Stack](#-tech-stack) • [Quick Start](#-quick-start) • [Configuration](#-configuration) • [Contributing](#-contributing)
 
 </div>
 
 ---
 
-## 📋 **Table of Contents**
+##  **Table of Contents**
 
 - [Overview](#-overview)
 - [Features](#-features)
@@ -41,7 +41,8 @@
 FixRx is a modern client-vendor management platform that connects consumers with trusted contractors and service providers. Built with enterprise-grade architecture, it supports 1,000+ concurrent users with sub-500ms API response times.
 
 ### **Key Capabilities**
-- 🔐 **Multi-Provider Authentication** (Email, Google, Facebook)
+- 🔐 **Magic Link Authentication** (Passwordless email authentication)
+- 🔑 **Google OAuth Integration** (Production-ready social authentication)
 - 🌍 **Geographic Search** with proximity-based vendor discovery
 - ⭐ **Four-Category Rating System** (Cost, Quality, Timeliness, Professionalism)
 - 📱 **Contact Integration** with phone directory sync
@@ -70,7 +71,8 @@ FixRx is a modern client-vendor management platform that connects consumers with
 - 🏆 **Reputation System** - Build trust through verified ratings
 
 ### **Platform Features**
-- 🔐 **Secure Authentication** - Multi-factor authentication with social login
+- 🔐 **Passwordless Authentication** - Magic link email authentication
+- 🔑 **Social Login** - Google OAuth (requires production deployment)
 - 🌐 **RESTful API** - Comprehensive API for third-party integrations
 - 📈 **Scalable Architecture** - Supports 1,000+ concurrent users
 - 🚀 **High Performance** - <500ms API response times
@@ -83,11 +85,12 @@ FixRx is a modern client-vendor management platform that connects consumers with
 
 ### **Backend**
 - **Runtime**: Node.js 18+
-- **Framework**: Express.js with TypeScript
-- **Database**: PostgreSQL 15+ with Prisma ORM
-- **Caching**: Redis 7+
-- **Authentication**: Auth0 + JWT
-- **Queue**: Bull Queue for background jobs
+- **Framework**: Express.js with JavaScript
+- **Database**: PostgreSQL 14+ with raw SQL queries
+- **Caching**: Redis 7+ (optional)
+- **Authentication**: Magic Links + Google OAuth + JWT
+- **Email Service**: SendGrid for magic link delivery
+- **SMS Service**: Twilio for notifications
 - **Validation**: Joi schema validation
 - **Testing**: Jest + Supertest
 
@@ -101,12 +104,12 @@ FixRx is a modern client-vendor management platform that connects consumers with
 - **Icons**: Lucide React
 
 ### **Third-Party Services**
-- **SMS**: Twilio
-- **Email**: SendGrid
-- **Push Notifications**: Firebase
-- **File Storage**: AWS S3
-- **License Verification**: Verdata/Mesh
-- **Social Auth**: Google OAuth, Facebook OAuth
+- **SMS**: Twilio (for notifications and invitations)
+- **Email**: SendGrid (for magic link authentication)
+- **Push Notifications**: Firebase (optional)
+- **File Storage**: AWS S3 (for uploads)
+- **License Verification**: Verdata/Mesh (optional)
+- **Social Auth**: Google OAuth (production deployment required)
 
 ### **DevOps & Deployment**
 - **Containerization**: Docker + Docker Compose
@@ -158,9 +161,11 @@ graph TB
 
 ### **Prerequisites**
 - Node.js 18+ and npm
-- PostgreSQL 15+
-- Redis 7+
+- PostgreSQL 14+
+- Redis 7+ (optional)
 - Git
+- SendGrid account (for magic link authentication)
+- Twilio account (optional, for SMS notifications)
 
 ### **1. Clone Repository**
 ```bash
@@ -171,18 +176,17 @@ cd fixrx
 ### **2. Backend Setup**
 ```bash
 # Navigate to backend directory
-cd backend
+cd Backend
 
 # Install dependencies
 npm install
 
 # Set up environment variables
 cp .env.example .env
-# Edit .env with your configuration
+# Edit .env with your configuration (see Configuration section below)
 
-# Set up database
-npx prisma migrate dev
-npx prisma generate
+# Set up database (PostgreSQL must be running)
+node database/create-tables.js
 
 # Start development server
 npm run dev
@@ -191,7 +195,7 @@ npm run dev
 ### **3. Frontend Setup**
 ```bash
 # Navigate to frontend directory (new terminal)
-cd frontend
+cd Frontend
 
 # Install dependencies
 npm install
@@ -270,42 +274,179 @@ npm run dev
 ## 🔧 **Configuration**
 
 ### **Backend Environment Variables**
+
+#### **Required for Basic Functionality**
 ```env
-# Database
-DATABASE_URL="postgresql://user:password@localhost:5432/fixrx"
-REDIS_URL="redis://localhost:6379"
-
-# Authentication
-JWT_SECRET="your-jwt-secret"
-JWT_REFRESH_SECRET="your-refresh-secret"
-AUTH0_DOMAIN="your-auth0-domain"
-AUTH0_CLIENT_ID="your-client-id"
-AUTH0_CLIENT_SECRET="your-client-secret"
-
-# Third-party Services
-TWILIO_ACCOUNT_SID="your-twilio-sid"
-TWILIO_AUTH_TOKEN="your-twilio-token"
-SENDGRID_API_KEY="your-sendgrid-key"
-AWS_ACCESS_KEY_ID="your-aws-key"
-AWS_SECRET_ACCESS_KEY="your-aws-secret"
-
-# Application
-NODE_ENV="development"
+# Server Configuration
+NODE_ENV=development
 PORT=3000
-CORS_ORIGINS="http://localhost:3001"
+
+# Database (PostgreSQL)
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=fixrx_db
+DB_USER=fixrx_user
+DB_PASSWORD=your_secure_password
+
+# JWT Authentication
+JWT_SECRET=your_jwt_secret_minimum_32_characters_long
+JWT_REFRESH_SECRET=your_refresh_secret_minimum_32_characters_long
+
+# Email Service (SendGrid) - REQUIRED for Magic Links
+SENDGRID_API_KEY=SG.your_sendgrid_api_key
+SENDGRID_FROM_EMAIL=noreply@yourdomain.com
+SENDGRID_FROM_NAME=FixRx
+
+# Frontend URL
+FRONTEND_URL=http://localhost:3001
+CORS_ORIGINS=http://localhost:3000,http://localhost:3001
+```
+
+#### **Optional Services**
+```env
+# SMS Service (Twilio) - For notifications
+TWILIO_ACCOUNT_SID=ACyour_twilio_account_sid
+TWILIO_AUTH_TOKEN=your_twilio_auth_token
+TWILIO_PHONE_NUMBER=+1234567890
+
+# Google OAuth - REQUIRES PRODUCTION DEPLOYMENT
+GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# Redis (Optional - for caching)
+REDIS_URL=redis://localhost:6379
+
+# AWS S3 (Optional - for file uploads)
+AWS_ACCESS_KEY_ID=your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+AWS_S3_BUCKET=your-bucket-name
 ```
 
 ### **Frontend Environment Variables**
 ```env
-VITE_API_BASE_URL="http://localhost:3000/api/v1"
-VITE_AUTH0_DOMAIN="your-auth0-domain"
-VITE_AUTH0_CLIENT_ID="your-client-id"
-VITE_GOOGLE_MAPS_API_KEY="your-maps-key"
+# API Configuration
+VITE_API_BASE_URL=http://localhost:3000/api/v1
+
+# Google OAuth (Production only)
+VITE_GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+
+# Optional Services
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 ```
+
+### **📧 SendGrid Setup (Required for Magic Links)**
+
+1. **Create SendGrid Account**
+   - Go to [SendGrid](https://sendgrid.com/)
+   - Sign up for a free account (100 emails/day)
+
+2. **Create API Key**
+   ```bash
+   # In SendGrid Dashboard:
+   # Settings → API Keys → Create API Key
+   # Choose "Restricted Access"
+   # Enable "Mail Send" permissions
+   ```
+
+3. **Verify Sender Identity**
+   ```bash
+   # In SendGrid Dashboard:
+   # Settings → Sender Authentication
+   # Verify your sender email address
+   ```
+
+4. **Add to Environment**
+   ```env
+   SENDGRID_API_KEY=SG.your_actual_api_key_here
+   SENDGRID_FROM_EMAIL=your_verified_email@domain.com
+   SENDGRID_FROM_NAME=FixRx
+   ```
+
+### **📱 Twilio Setup (Optional for SMS)**
+
+1. **Create Twilio Account**
+   - Go to [Twilio](https://www.twilio.com/)
+   - Sign up for account (free trial available)
+
+2. **Get Credentials**
+   ```bash
+   # In Twilio Console:
+   # Account → Account Info
+   # Copy Account SID and Auth Token
+   ```
+
+3. **Get Phone Number**
+   ```bash
+   # In Twilio Console:
+   # Phone Numbers → Manage → Buy a number
+   # Choose a number for SMS sending
+   ```
+
+4. **Add to Environment**
+   ```env
+   TWILIO_ACCOUNT_SID=ACyour_account_sid_here
+   TWILIO_AUTH_TOKEN=your_auth_token_here
+   TWILIO_PHONE_NUMBER=+1234567890
+   ```
+
+### **🔑 Google OAuth Setup (Production Only)**
+
+⚠️ **Important**: Google OAuth requires your app to be in production mode. It won't work in development/testing mode.
+
+1. **Create Google Cloud Project**
+   - Go to [Google Cloud Console](https://console.developers.google.com/)
+   - Create new project or select existing
+
+2. **Enable Google+ API**
+   ```bash
+   # In Google Cloud Console:
+   # APIs & Services → Library
+   # Search for "Google+ API" and enable it
+   ```
+
+3. **Create OAuth Credentials**
+   ```bash
+   # APIs & Services → Credentials
+   # Create Credentials → OAuth client ID
+   # Application type: Web application
+   ```
+
+4. **Configure OAuth Consent Screen**
+   ```bash
+   # Fill required fields:
+   # - App name: FixRx
+   # - User support email: your-email@domain.com
+   # - Application home page: https://yourdomain.com
+   # - Privacy policy: https://yourdomain.com/privacy
+   # - Terms of service: https://yourdomain.com/terms
+   ```
+
+5. **Publish Your App**
+   ```bash
+   # OAuth consent screen → PUBLISH APP
+   # This is REQUIRED for OAuth to work
+   ```
+
+6. **Add to Environment**
+   ```env
+   GOOGLE_CLIENT_ID=your_client_id.apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=your_client_secret
+   ```
 
 ---
 
 ## 📚 **API Documentation**
+
+### **Magic Link Authentication**
+```http
+POST /api/v1/auth/magic-link/send     # Send magic link
+POST /api/v1/auth/magic-link/verify   # Verify magic link
+```
+
+### **Google OAuth Authentication**
+```http
+POST /api/v1/auth/oauth/google/verify # Verify Google ID token
+```
 
 ### **Authentication Endpoints**
 ```http

@@ -1,5 +1,5 @@
-import { QueueService } from './queue';
-import { EmailService } from './email.service';
+const { queueManager } = require('./queueManager');
+const EmailService = require('./email.service');
 import { SMSService } from './sms.service';
 import { logger } from '../utils/logger';
 
@@ -151,15 +151,15 @@ export const initializeJobProcessors = () => {
   logger.info('Initializing background job processors...');
   
   // Register email processor
-  QueueService.processEmailQueue(processEmailJob);
+  queueManager.processEmailQueue(processEmailJob);
   logger.info('✅ Email queue processor registered');
   
   // Register SMS processor
-  QueueService.processSMSQueue(processSMSJob);
+  queueManager.processSMSQueue(processSMSJob);
   logger.info('✅ SMS queue processor registered');
   
   // Register notification processor
-  QueueService.processNotificationQueue(processNotificationJob);
+  queueManager.processNotificationQueue(processNotificationJob);
   logger.info('✅ Notification queue processor registered');
   
   logger.info('🚀 All job processors initialized successfully');
@@ -174,7 +174,7 @@ export const JobHelpers = {
    */
   async queueWelcomeEmail(to: string, firstName: string, verificationLink?: string) {
     // Since templates are empty, use direct EmailService call
-    return await QueueService.addEmailJob({
+    return await queueManager.addEmailJob({
       to,
       subject: 'Welcome to FixRx!',
       html: `
@@ -198,7 +198,7 @@ export const JobHelpers = {
    * Queue invitation email
    */
   async queueInvitationEmail(to: string, inviterName: string, appLink: string, customMessage?: string) {
-    return await QueueService.addEmailJob({
+    return await queueManager.addEmailJob({
       to,
       subject: `${inviterName} invited you to join FixRx`,
       template: 'invitation',
@@ -215,7 +215,7 @@ export const JobHelpers = {
    * Queue password reset email
    */
   async queuePasswordResetEmail(to: string, firstName: string, resetLink: string) {
-    return await QueueService.addEmailJob({
+    return await queueManager.addEmailJob({
       to,
       subject: 'Reset Your FixRx Password',
       template: 'password_reset',
@@ -231,7 +231,7 @@ export const JobHelpers = {
    * Queue invitation SMS
    */
   async queueInvitationSMS(to: string, inviterName: string, appLink: string) {
-    return await QueueService.addSMSJob({
+    return await queueManager.addSMSJob({
       to,
       message: `Hi! ${inviterName} invited you to join FixRx - the app that connects you with trusted service providers. Download: ${appLink}`,
     });
@@ -241,7 +241,7 @@ export const JobHelpers = {
    * Queue verification SMS
    */
   async queueVerificationSMS(to: string, code: string) {
-    return await QueueService.addSMSJob({
+    return await queueManager.addSMSJob({
       to,
       message: `Your FixRx verification code is: ${code}. This code expires in 10 minutes.`,
     });
@@ -251,7 +251,7 @@ export const JobHelpers = {
    * Queue notification
    */
   async queueNotification(userId: string, title: string, body: string, data?: any) {
-    return await QueueService.addNotificationJob({
+    return await queueManager.addNotificationJob({
       userId,
       title,
       body,
@@ -277,7 +277,7 @@ export const JobHelpers = {
       },
     }));
 
-    return await QueueService.addBulkEmailJobs(jobs);
+    return await queueManager.addBulkEmailJobs(jobs);
   },
 
   /**
@@ -291,7 +291,7 @@ export const JobHelpers = {
       },
     }));
 
-    return await QueueService.addBulkSMSJobs(jobs);
+    return await queueManager.addBulkSMSJobs(jobs);
   },
 };
 

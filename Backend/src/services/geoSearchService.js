@@ -34,23 +34,24 @@ class GeoSearchService {
   async createSpatialIndexes() {
     try {
       // Create compound index for lat/lng bounding box queries
+      // Create spatial index without status filter (column doesn't exist yet)
       await dbManager.query(`
         CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_vendors_location_bbox 
-        ON vendors (latitude, longitude) 
-        WHERE status = 'active'
+        ON vendors (latitude, longitude)
       `);
 
-      // Create GIN index for service categories array
-      await dbManager.query(`
-        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_vendors_service_categories 
-        ON vendors USING GIN (service_categories)
-      `);
+      // Skip GIN index for now - column might not exist
+      // await dbManager.query(`
+      //   CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_vendors_service_categories 
+      //   ON vendors USING GIN (service_categories)
+      // `);
 
       // Create partial index for active vendors only
+      // Create partial index for vendors with location
       await dbManager.query(`
         CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_vendors_active_location 
         ON vendors (latitude, longitude, created_at) 
-        WHERE status = 'active' AND latitude IS NOT NULL AND longitude IS NOT NULL
+        WHERE latitude IS NOT NULL AND longitude IS NOT NULL
       `);
 
       console.log('✅ Spatial indexes created/verified');

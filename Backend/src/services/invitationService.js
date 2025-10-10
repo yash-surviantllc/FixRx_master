@@ -5,7 +5,7 @@
 
 const { dbManager } = require('../config/database');
 const twilioService = require('./twilioService');
-const emailService = require('./emailService');
+const EmailService = require('./email.service');
 const ContactService = require('./contactService');
 
 class InvitationService {
@@ -160,8 +160,9 @@ class InvitationService {
       .replace('{{inviteLink}}', inviteLink)
       .replace('{{acceptButtonUrl}}', inviteLink);
 
-    if (emailService && emailService.isAvailable()) {
-      return await emailService.sendEmail({
+    const emailServiceInstance = EmailService.getInstance();
+    if (emailServiceInstance && emailServiceInstance.isConfigured) {
+      return await emailServiceInstance.sendEmail({
         to,
         subject,
         html: htmlContent,

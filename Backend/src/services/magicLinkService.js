@@ -9,7 +9,7 @@ const EmailService = require('./email.service');
 const { dbManager } = require('../config/database');
 const { logger } = require('../utils/logger');
 
-const emailService = EmailService.getInstance();
+// EmailService will be instantiated as needed
 
 class MagicLinkService {
   constructor() {
@@ -381,11 +381,11 @@ class MagicLinkService {
   async updateUserLastLogin(userId, ipAddress) {
     const query = `
       UPDATE users 
-      SET last_login_at = CURRENT_TIMESTAMP, last_login_ip = $2
+      SET "lastLoginAt" = CURRENT_TIMESTAMP
       WHERE id = $1
     `;
     
-    await dbManager.query(query, [userId, ipAddress]);
+    await dbManager.query(query, [userId]);
   }
 
   /**
@@ -449,6 +449,7 @@ class MagicLinkService {
       const isLogin = purpose === 'LOGIN';
       const subject = isLogin ? 'Your FixRx Login Link' : 'Complete Your FixRx Registration';
 
+      const emailService = EmailService.getInstance();
       if (!emailService || !emailService.isConfigured) {
         logger.warn('Email service not configured, skipping magic link email');
         return {
@@ -509,7 +510,7 @@ class MagicLinkService {
           </div>
         </div>`;
 
-      const emailResult = await EmailService.sendEmail({
+      const emailResult = await emailService.sendEmail({
         to: email,
         subject,
         html
@@ -564,6 +565,7 @@ class MagicLinkService {
       await dbManager.query('SELECT 1');
       
       // Email service health is based on configuration
+      const emailService = EmailService.getInstance();
       const emailHealthy = !!(emailService && emailService.isConfigured);
       
       return {

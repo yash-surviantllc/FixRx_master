@@ -299,6 +299,14 @@ class DatabaseManager {
     }
   }
 
+  // Get connection method for services that need it
+  async getConnection() {
+    if (!this.pgPool) {
+      await this.initialize();
+    }
+    return this.pgPool;
+  }
+
   async close() {
     if (this.pgPool) {
       try {
@@ -333,6 +341,7 @@ class DatabaseManager {
 
   getStatus() {
     return {
+      connected: !!this.pgPool && this.isConnected,
       postgresql: !!this.pgPool,
       redis: this.isConnected,
       poolStats: this.pgPool ? {
