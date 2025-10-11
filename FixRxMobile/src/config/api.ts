@@ -40,6 +40,17 @@ export const API_ENDPOINTS = {
     OAUTH: {
       GOOGLE_VERIFY: '/auth/oauth/google/verify',
     },
+    MAGIC_LINK: {
+      SEND: '/auth/magic-link/send',
+      VERIFY: '/auth/magic-link/verify',
+      HEALTH: '/auth/magic-link/health',
+    },
+    OTP: {
+      SEND: '/auth/otp/send',
+      RESEND: '/auth/otp/resend',
+      VERIFY: '/auth/otp/verify',
+      HEALTH: '/auth/otp/health',
+    },
   },
   
   // Consumer

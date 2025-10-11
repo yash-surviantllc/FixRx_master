@@ -181,7 +181,50 @@ const statements = [
   'CREATE INDEX IF NOT EXISTS idx_ratings_vendor_id ON ratings(vendor_id)',
   'CREATE INDEX IF NOT EXISTS idx_ratings_created_at ON ratings(created_at)',
   'CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id)',
-  'CREATE INDEX IF NOT EXISTS idx_notifications_status ON notifications(status)'
+  'CREATE INDEX IF NOT EXISTS idx_notifications_status ON notifications(status)',
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMPTZ`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_verified BOOLEAN DEFAULT FALSE`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_otp_sent_at TIMESTAMPTZ`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_attempts INTEGER DEFAULT 0`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_blocked_until TIMESTAMPTZ`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_last_ip VARCHAR(64)`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_last_user_agent VARCHAR(255)`,
+  `CREATE TABLE IF NOT EXISTS otp_verifications (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      phone_number VARCHAR(20) NOT NULL,
+      otp_code_hash VARCHAR(128) NOT NULL,
+      otp_code_salt VARCHAR(64) NOT NULL,
+      purpose VARCHAR(32) DEFAULT 'LOGIN',
+      status VARCHAR(16) DEFAULT 'PENDING',
+      attempts INTEGER DEFAULT 0,
+      max_attempts INTEGER DEFAULT 5,
+      expires_at TIMESTAMPTZ NOT NULL,
+      verified_at TIMESTAMPTZ,
+      last_sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      ip_address VARCHAR(64),
+      user_agent VARCHAR(255),
+      metadata JSONB DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )`,
+  `CREATE INDEX IF NOT EXISTS idx_otp_verifications_phone ON otp_verifications(phone_number)`,
+  `CREATE INDEX IF NOT EXISTS idx_otp_verifications_status ON otp_verifications(status)`,
+  `CREATE INDEX IF NOT EXISTS idx_otp_verifications_expires ON otp_verifications(expires_at)`,
+  `CREATE TABLE IF NOT EXISTS phone_auth_sessions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      phone_number VARCHAR(20) NOT NULL,
+      session_token VARCHAR(128) NOT NULL,
+      user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+      otp_verification_id UUID REFERENCES otp_verifications(id) ON DELETE SET NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      consumed_at TIMESTAMPTZ,
+      ip_address VARCHAR(64),
+      user_agent VARCHAR(255),
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )`,
+  `CREATE INDEX IF NOT EXISTS idx_phone_auth_sessions_phone ON phone_auth_sessions(phone_number)`,
+  `CREATE INDEX IF NOT EXISTS idx_phone_auth_sessions_token ON phone_auth_sessions(session_token)`
 ];
 
 async function runMigrations() {

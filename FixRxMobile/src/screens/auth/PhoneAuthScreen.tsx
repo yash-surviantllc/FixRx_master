@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../../types/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import CountryCodeDropdown from '../../components/CountryCodeDropdown';
+import { authService } from '../../services/authService';
+import { useAppContext } from '../../context/AppContext';
 
 type PhoneAuthScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'PhoneAuth'>;
 
@@ -14,7 +16,10 @@ const PhoneAuthScreen = () => {
   const [countryName, setCountryName] = useState('United States');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
-  const [confirm, setConfirm] = useState<any>(null);
+  const [confirm, setConfirm] = useState<boolean>(false);
+  const [isSendingCode, setIsSendingCode] = useState(false);
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+  const { authenticateUser } = useAppContext();
   const navigation = useNavigation<PhoneAuthScreenNavigationProp>();
 
   const handleCountrySelect = (code: string, flag: string, country: string) => {
@@ -23,24 +28,49 @@ const PhoneAuthScreen = () => {
     setCountryName(country);
   };
 
+  const formattedPhoneNumber = useMemo(() => {
+    const digitsOnly = phoneNumber.replace(/[^0-9]/g, '');
+    return `${countryCode}${digitsOnly}`;
+  }, [countryCode, phoneNumber]);
+
+  const isPhoneValid = useMemo(() => {
+    const e164Regex = /^\+[1-9]\d{6,14}$/;
+    return e164Regex.test(formattedPhoneNumber);
+  }, [formattedPhoneNumber]);
+
   const handleSendCode = async () => {
-    if (!phoneNumber) {
-      Alert.alert('Error', 'Please enter a valid phone number');
+    if (!phoneNumber || !isPhoneValid) {
+      Alert.alert('Error', 'Please enter a valid phone number in the format +1234567890');
       return;
     }
-    
-    const fullPhoneNumber = `${countryCode}${phoneNumber}`;
-    
+
+    if (isSendingCode) {
+      return;
+    }
+
     try {
-      // TODO: Implement phone number verification logic here
-      // Example with Firebase Auth:
-      // const confirmation = await auth().signInWithPhoneNumber(fullPhoneNumber);
-      // setConfirm(confirmation);
-      Alert.alert('Success', `Verification code sent to ${fullPhoneNumber}`);
-      setConfirm(true); // Temporary for demo
+      setIsSendingCode(true);
+
+      const response = await authService.sendOtp({ phone: formattedPhoneNumber });
+
+      if (!response.success) {
+        const retryAfter = response.data?.retryAfterSeconds;
+        const details = retryAfter ? ` Please wait ${retryAfter} seconds before trying again.` : '';
+        Alert.alert('Error', `${response.message || 'Failed to send verification code'}${details}`.trim());
+        return;
+      }
+
+      setConfirm(true);
+      setVerificationCode('');
+
+      const devNote = response.data?.devCode ? `\n\nDevelopment code: ${response.data.devCode}` : '';
+      const message = response.message || `Verification code sent to ${formattedPhoneNumber}`;
+      Alert.alert('Success', `${message}${devNote}`.trim());
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'Failed to send verification code');
+    } finally {
+      setIsSendingCode(false);
     }
   };
 
@@ -50,16 +80,37 @@ const PhoneAuthScreen = () => {
       return;
     }
 
+    if (isVerifyingCode) {
+      return;
+    }
+
     try {
-      // TODO: Implement verification code confirmation
-      // Example with Firebase Auth:
-      // await confirm.confirm(verificationCode);
-      // User is now authenticated
-      navigation.navigate('UserType');
+      setIsVerifyingCode(true);
+
+      const response = await authService.verifyOtp({
+        phone: formattedPhoneNumber,
+        code: verificationCode.trim(),
+      });
+
+      if (!response.success || !response.data?.user) {
+        Alert.alert('Error', response.message || 'Invalid verification code');
+        return;
+      }
+
+      await authenticateUser(response.data.user, { isNewUser: response.data.isNewUser });
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'Invalid verification code');
+    } finally {
+      setIsVerifyingCode(false);
     }
+  };
+
+  const handleResendCode = () => {
+    if (isSendingCode || isVerifyingCode) {
+      return;
+    }
+    handleSendCode();
   };
 
   return (
@@ -98,7 +149,12 @@ const PhoneAuthScreen = () => {
             />
           </View>
 
-          <TouchableOpacity style={styles.button} onPress={handleSendCode}>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleSendCode}
+            disabled={isSendingCode}
+            activeOpacity={isSendingCode ? 1 : 0.7}
+          >
             <Text style={styles.buttonText}>Send Verification Code</Text>
           </TouchableOpacity>
         </>
@@ -109,19 +165,24 @@ const PhoneAuthScreen = () => {
           </Text>
           <TextInput
             style={styles.verificationInput}
-            placeholder="123456"
             value={verificationCode}
             onChangeText={setVerificationCode}
             keyboardType="number-pad"
             maxLength={6}
           />
-          <TouchableOpacity style={styles.button} onPress={handleVerifyCode}>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleVerifyCode}
+            disabled={isVerifyingCode}
+            activeOpacity={isVerifyingCode ? 1 : 0.7}
+          >
             <Text style={styles.buttonText}>Verify Code</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity 
             style={styles.resendButton}
-            onPress={handleSendCode}
+            onPress={handleResendCode}
+            disabled={isSendingCode || isVerifyingCode}
           >
             <Text style={styles.resendText}>Resend Code</Text>
           </TouchableOpacity>

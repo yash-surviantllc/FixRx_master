@@ -25,6 +25,20 @@ interface AppContextType {
   isAuthenticated: boolean;
   setIsAuthenticated: (value: boolean) => void;
   isAuthLoading: boolean;
+  authenticateUser: (
+    user: {
+      id: string;
+      email: string;
+      firstName: string;
+      lastName: string;
+      userType?: string | null;
+      phone?: string;
+      profileImage?: string;
+      avatar?: string;
+      metroArea?: string;
+    },
+    options?: { isNewUser?: boolean }
+  ) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -191,6 +205,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         isAuthenticated,
         setIsAuthenticated,
         isAuthLoading,
+        authenticateUser: handleAuthenticatedUser,
       }}
     >
       {children}

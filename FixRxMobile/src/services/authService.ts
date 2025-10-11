@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiClient, ApiResponse } from './apiClient';
 import { API_ENDPOINTS } from '../config/api';
 import { magicLinkAuthService } from './magicLinkAuthService';
+import { otpAuthService, type OtpResponseData } from './otpAuthService';
 
 export interface AuthUser {
   id: string;
@@ -39,6 +40,16 @@ export interface RegisterData {
   userType: 'consumer' | 'vendor';
   phone?: string;
   metroArea?: string;
+}
+
+export interface OtpSendParams {
+  phone: string;
+  purpose?: 'LOGIN' | 'REGISTRATION';
+}
+
+export interface OtpVerifyParams {
+  phone: string;
+  code: string;
 }
 
 class AuthService {
@@ -74,7 +85,11 @@ class AuthService {
    * @returns Promise with authentication response
    */
   async login(credentials: LoginCredentials): Promise<ApiResponse<{ user: AuthUser; token: string }>> {
-    const backendCall = () => apiClient.post(API_ENDPOINTS.AUTH.LOGIN, credentials);
+    const backendCall = () =>
+      apiClient.post<{ user: AuthUser; token: string }>(
+        API_ENDPOINTS.AUTH.LOGIN,
+        credentials
+      );
     
     const mockData = {
       user: {
@@ -92,7 +107,10 @@ class AuthService {
       token: `mock_token_${Date.now()}`,
     };
 
-    const response = await this.useBackendOrMock(backendCall, mockData);
+    const response = await this.useBackendOrMock<{ user: AuthUser; token: string }>(
+      backendCall,
+      mockData
+    );
 
     if (response.success && response.data) {
       await this.saveAuthData(response.data.user, response.data.token);
@@ -156,7 +174,7 @@ class AuthService {
 
   // Get user profile
   async getProfile(): Promise<ApiResponse<AuthUser>> {
-    const backendCall = () => apiClient.get(API_ENDPOINTS.AUTH.PROFILE);
+    const backendCall = () => apiClient.get<AuthUser>(API_ENDPOINTS.AUTH.PROFILE);
     
     const mockData = {
       id: 'user_123',
@@ -171,17 +189,42 @@ class AuthService {
       createdAt: new Date().toISOString(),
     } as AuthUser;
 
-    return this.useBackendOrMock(backendCall, mockData);
+    return this.useBackendOrMock<AuthUser>(backendCall, mockData);
+  }
+
+  // Update user profile
+  async updateProfile(updates: Partial<AuthUser>): Promise<ApiResponse<AuthUser>> {
+    const backendCall = () => apiClient.put<AuthUser>(API_ENDPOINTS.AUTH.PROFILE, updates);
+    
+    const mockData = {
+      id: 'user_123',
+      email: updates.email || 'john.doe@example.com',
+      firstName: updates.firstName || 'John',
+      lastName: updates.lastName || 'Doe',
+      userType: updates.userType || 'consumer' as const,
+      phone: updates.phone || '+1234567890',
+      profileImage: updates.profileImage || 'https://i.pravatar.cc/100?img=1',
+      isVerified: true,
+      metroArea: updates.metroArea || 'San Francisco',
+      createdAt: new Date().toISOString(),
+    } as AuthUser;
+
+    return this.useBackendOrMock<AuthUser>(backendCall, mockData);
   }
 
   // Save authentication data to storage
   private async saveAuthData(user: AuthUser, token: string, refreshToken?: string): Promise<void> {
     try {
-      await AsyncStorage.multiSet([
+      const pairs: [string, string][] = [
         [AuthService.TOKEN_KEY, token],
         [AuthService.USER_KEY, JSON.stringify(user)],
-        ...(refreshToken ? [[AuthService.REFRESH_TOKEN_KEY, refreshToken]] : []),
-      ]);
+      ];
+
+      if (refreshToken) {
+        pairs.push([AuthService.REFRESH_TOKEN_KEY, refreshToken]);
+      }
+
+      await AsyncStorage.multiSet(pairs);
       
       // Set token in API client
       apiClient.setAuthToken(token);
@@ -227,17 +270,75 @@ class AuthService {
     }
   }
 
+  /**
+   * Phone OTP Authentication
+   */
+  async sendOtp({ phone, purpose = 'LOGIN' }: OtpSendParams): Promise<ApiResponse<OtpResponseData>> {
+    try {
+      const result = await otpAuthService.sendCode({ phone, purpose });
+      return {
+        success: result.success,
+        message:
+          result.message || (result.success ? 'Verification code sent' : 'Failed to send verification code'),
+        data: {
+          ...result.data,
+          retryAfterSeconds: result.retryAfterSeconds,
+        },
+        error: result.success ? undefined : result.message || 'Failed to send verification code',
+      };
+    } catch (error) {
+      console.error('OTP send failed:', error);
+      return {
+        success: false,
+        message: 'Failed to send verification code',
+        error: 'NETWORK_ERROR',
+      };
+    }
+  }
+
+  async verifyOtp({ phone, code }: OtpVerifyParams): Promise<ApiResponse<{ user: AuthUser; token: string; isNewUser: boolean }>> {
+    try {
+      const result = await otpAuthService.verifyCode({ phone, code });
+
+      if (result.success && result.data?.user && result.data?.token) {
+        const normalizedUser = this.mapBackendUser(result.data.user);
+        await this.saveAuthData(normalizedUser, result.data.token, result.data.refreshToken);
+
+        return {
+          success: true,
+          message: result.message || 'Phone number verified successfully',
+          data: {
+            user: normalizedUser,
+            token: result.data.token,
+            isNewUser: Boolean(result.data.isNewUser),
+          },
+        };
+      }
+
+      return {
+        success: false,
+        message: result.message || 'Failed to verify code',
+        error: result.message || 'Failed to verify code',
+      };
+    } catch (error) {
+      console.error('OTP verify failed:', error);
+      return {
+        success: false,
+        message: 'Failed to verify code',
+        error: 'NETWORK_ERROR',
+      };
+    }
+  }
   // Check if user is authenticated
   async isAuthenticated(): Promise<boolean> {
     const token = await this.getStoredToken();
     const user = await this.getStoredUser();
-    
+
     if (token && user) {
-      // Set token in API client for future requests
       apiClient.setAuthToken(token);
       return true;
     }
-    
+
     return false;
   }
 
@@ -269,7 +370,7 @@ class AuthService {
         return {
           success: false,
           message: result.message,
-          error: result.message,
+          error: result.message || 'Magic link request failed',
         };
       }
     } catch (error) {
@@ -316,7 +417,7 @@ class AuthService {
         return {
           success: false,
           message: result.message,
-          error: { code: result.code || 'VERIFICATION_ERROR', message: result.message },
+          error: result.message || 'Magic link verification failed',
         };
       }
     } catch (error) {
@@ -324,9 +425,37 @@ class AuthService {
       return {
         success: false,
         message: 'Failed to verify magic link',
-        error: { code: 'NETWORK_ERROR', message: 'Network error occurred' },
+        error: 'Network error occurred',
       };
     }
+  }
+
+  private mapBackendUser(raw: any): AuthUser {
+    if (!raw) {
+      throw new Error('Invalid user data received from backend');
+    }
+
+    const userTypeValue = (raw.userType ?? raw.user_type ?? 'consumer').toString().toLowerCase();
+    const normalizedUserType: 'consumer' | 'vendor' = userTypeValue === 'vendor' ? 'vendor' : 'consumer';
+
+    return {
+      id: raw.id,
+      email: raw.email,
+      firstName: raw.firstName ?? raw.first_name ?? '',
+      lastName: raw.lastName ?? raw.last_name ?? '',
+      userType: normalizedUserType,
+      phone: raw.phone,
+      profileImage: raw.profileImage ?? raw.profile_image ?? raw.avatar ?? raw.avatar_url,
+      isVerified:
+        raw.isVerified ??
+        raw.phoneVerified ??
+        raw.phone_verified ??
+        raw.emailVerified ??
+        raw.email_verified ??
+        false,
+      metroArea: raw.metroArea ?? raw.metro_area ?? undefined,
+      createdAt: raw.createdAt ?? raw.created_at ?? undefined,
+    };
   }
 
   /**

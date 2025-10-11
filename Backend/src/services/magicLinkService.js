@@ -34,10 +34,19 @@ class MagicLinkService {
 
       // Rate limiting check
       const rateLimitCheck = await this.checkRateLimit(email);
+      if (rateLimitCheck.devBypass) {
+        logger.debug('Magic link rate limit bypassed in development', { email });
+      }
+
       if (!rateLimitCheck.allowed) {
         return {
           success: false,
-          message: `Too many requests. Please try again in ${rateLimitCheck.waitTime} minutes.`
+          message: `Too many requests. Please try again in ${rateLimitCheck.waitTime} minutes.`,
+          code: 'RATE_LIMIT_EXCEEDED',
+          metadata: {
+            attemptsInWindow: rateLimitCheck.count,
+            windowMinutes: rateLimitCheck.windowMinutes
+          }
         };
       }
 
@@ -74,12 +83,18 @@ class MagicLinkService {
         userAgent,
         expiresAt
       });
-
       // Generate magic link URL
-      const magicLinkUrl = `${this.BASE_URL}/auth/magic-link?token=${token}&email=${encodeURIComponent(email)}`;
+      const magicLinkUrl = this.BASE_URL.startsWith('exp://') 
+        ? `${this.BASE_URL}?token=${token}&email=${encodeURIComponent(email)}`
+        : this.BASE_URL.startsWith('fixrx://') 
+        ? `${this.BASE_URL}?token=${token}&email=${encodeURIComponent(email)}`
+        : `${this.BASE_URL}/auth/magic-link?token=${token}&email=${encodeURIComponent(email)}`;
+      
+      // Also generate a web fallback URL for development
+      const webFallbackUrl = `http://192.168.1.5:3000/magic-link?token=${token}&email=${encodeURIComponent(email)}`;
 
       // Send email with magic link
-      const emailResult = await this.sendMagicLinkEmail(email, magicLinkUrl, purpose, existingUser?.first_name);
+      const emailResult = await this.sendMagicLinkEmail(email, magicLinkUrl, purpose, existingUser?.first_name, webFallbackUrl);
 
       if (!emailResult.success) {
         // Clean up stored magic link if email failed
@@ -117,15 +132,30 @@ class MagicLinkService {
    */
   async verifyMagicLink(token, email, userAgent = '', ipAddress = '') {
     try {
+      console.log('🔍 SERVICE: Magic link verification attempt', { 
+        token: token.substring(0, 10) + '...', 
+        email,
+        timestamp: new Date().toISOString()
+      });
+      logger.info('Magic link verification attempt', { token: token.substring(0, 10) + '...', email });
+      
       // Find and validate magic link
       const magicLink = await this.findMagicLink(token);
 
       if (!magicLink) {
+        logger.error('Magic link not found in database', { token: token.substring(0, 10) + '...', email });
         return {
           success: false,
           message: 'Invalid or expired magic link'
         };
       }
+
+      logger.info('Magic link found', { 
+        id: magicLink.id, 
+        email: magicLink.email, 
+        isUsed: magicLink.is_used, 
+        expiresAt: magicLink.expires_at 
+      });
 
       // Check if already used
       if (magicLink.is_used) {
@@ -136,7 +166,17 @@ class MagicLinkService {
       }
 
       // Check if expired
-      if (new Date() > new Date(magicLink.expires_at)) {
+      const now = new Date();
+      const expiresAt = new Date(magicLink.expires_at);
+      console.log('🔎 SERVICE: Expiration check', {
+        now: now.toISOString(),
+        expiresAt: expiresAt.toISOString(),
+        diffMs: expiresAt.getTime() - now.getTime(),
+        isExpired: now > expiresAt,
+        rawExpiresAt: magicLink.expires_at
+      });
+
+      if (now > expiresAt) {
         await this.invalidateMagicLink(token);
         return {
           success: false,
@@ -151,9 +191,6 @@ class MagicLinkService {
           message: 'Invalid magic link'
         };
       }
-
-      // Mark magic link as used
-      await this.markMagicLinkAsUsed(token);
 
       let user = null;
       let isNewUser = false;
@@ -183,6 +220,9 @@ class MagicLinkService {
       // Store refresh token
       await this.storeRefreshToken(user.id, refreshToken);
 
+      // Mark magic link as used ONLY after successful completion
+      await this.markMagicLinkAsUsed(token);
+
       // Remove sensitive data
       const { password_hash, ...safeUser } = user;
 
@@ -203,7 +243,22 @@ class MagicLinkService {
       };
 
     } catch (error) {
-      logger.error('Error verifying magic link:', error);
+      console.error('🚨 CRITICAL ERROR in verifyMagicLink:', {
+        error: error.message,
+        stack: error.stack?.split('\n').slice(0, 5).join('\n'),
+        token: token.substring(0, 10) + '...',
+        email,
+        errorCode: error.code,
+        errorName: error.name
+      });
+      
+      logger.error('Error verifying magic link:', {
+        error: error.message,
+        stack: error.stack,
+        token: token.substring(0, 10) + '...',
+        email
+      });
+      
       return {
         success: false,
         message: 'Failed to verify magic link. Please try again.'
@@ -231,6 +286,11 @@ class MagicLinkService {
    */
   async checkRateLimit(email) {
     try {
+      // Development environment should be far more permissive to avoid blocking QA
+      if (process.env.NODE_ENV === 'development') {
+        return { allowed: true, devBypass: true };
+      }
+
       const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
       
       const query = `
@@ -242,21 +302,21 @@ class MagicLinkService {
       
       const result = await dbManager.query(query, [email, fifteenMinutesAgo]);
       const count = parseInt(result.rows[0].count);
-      
-      const maxRequests = 3; // Max 3 requests per 15 minutes
-      
+
       if (count >= maxRequests) {
         return {
           allowed: false,
-          waitTime: 15 // minutes
+          waitTime: 15, // minutes
+          count,
+          windowMinutes: 15
         };
       }
-      
+
       return { allowed: true };
-      
+
     } catch (error) {
       logger.error('Rate limit check error:', error);
-      return { allowed: true }; // Allow on error
+      return { allowed: true, error: 'rate-limit-check-failed' }; // fail-open in case of error
     }
   }
 
@@ -358,17 +418,28 @@ class MagicLinkService {
     const firstName = emailParts.charAt(0).toUpperCase() + emailParts.slice(1);
     
     const query = `
-      INSERT INTO users (email, first_name, last_name, user_type, is_verified, email_verified_at)
-      VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+      INSERT INTO users (
+        email,
+        first_name,
+        last_name,
+        user_type,
+        email_verified,
+        email_verified_at,
+        status,
+        password_hash
+      )
+      VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7)
       RETURNING *
     `;
     
     const values = [
       magicLink.email,
       firstName,
-      '', // Empty last name, user can update later
-      'CONSUMER', // Default user type
-      true // Email is verified through magic link
+      '', // Placeholder last name; user can update profile later
+      'consumer',
+      true,
+      'ACTIVE',
+      null
     ];
     
     const result = await dbManager.query(query, values);
@@ -444,7 +515,7 @@ class MagicLinkService {
   /**
    * Send magic link email
    */
-  async sendMagicLinkEmail(email, magicLinkUrl, purpose, firstName = '') {
+  async sendMagicLinkEmail(email, magicLinkUrl, purpose, firstName = '', webFallbackUrl = '') {
     try {
       const isLogin = purpose === 'LOGIN';
       const subject = isLogin ? 'Your FixRx Login Link' : 'Complete Your FixRx Registration';
@@ -479,17 +550,24 @@ class MagicLinkService {
             
             <div style="text-align: center; margin: 30px 0;">
               <a href="${magicLinkUrl}" 
-                 style="background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
-                ${isLogin ? 'Log In to FixRx' : 'Complete Registration'}
+                 style="background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block; margin-bottom: 10px;">
+                ${isLogin ? 'Open in FixRx App' : 'Complete Registration in App'}
               </a>
+              ${webFallbackUrl ? `<br><a href="${webFallbackUrl}" 
+                 style="background-color: #6b7280; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; display: inline-block; margin-top: 10px;">
+                Open in Browser (Fallback)
+              </a>` : ''}
             </div>
             
-            <p style="color: #64748b; font-size: 14px; margin-bottom: 0;">
-              If the button doesn't work, copy and paste this link into your browser:
+            <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+              ${webFallbackUrl ? 'Try the app link first, or use the browser fallback if needed.' : 'If the button doesn\'t work, copy and paste this link:'}
             </p>
-            <p style="color: #2563eb; font-size: 14px; word-break: break-all; margin-top: 5px;">
+            ${webFallbackUrl ? `<p style="color: #2563eb; font-size: 12px; word-break: break-all; margin-top: 5px;">
+              App: ${magicLinkUrl}<br>
+              Browser: ${webFallbackUrl}
+            </p>` : `<p style="color: #2563eb; font-size: 14px; word-break: break-all; margin-top: 5px;">
               ${magicLinkUrl}
-            </p>
+            </p>`}
           </div>
           
           <div style="border-top: 1px solid #e2e8f0; padding-top: 20px;">

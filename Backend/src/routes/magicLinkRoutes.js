@@ -9,37 +9,56 @@ const magicLinkController = require('../controllers/magicLinkController');
 
 const router = express.Router();
 
+// Environment-based rate limiting configuration
+const isDevelopment = process.env.NODE_ENV === 'development';
+
 // Rate limiting for magic link requests
 const magicLinkRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 requests per windowMs
+  windowMs: isDevelopment ? 1 * 60 * 1000 : 15 * 60 * 1000, // 1 min dev, 15 min prod
+  max: isDevelopment ? 50 : 5, // 50 requests dev, 5 requests prod
   message: {
     success: false,
-    message: 'Too many magic link requests. Please try again later.',
-    code: 'RATE_LIMIT_EXCEEDED'
+    message: isDevelopment 
+      ? 'Development rate limit exceeded. Please wait 1 minute before trying again.'
+      : 'Too many magic link requests. Please try again in 15 minutes.',
+    code: 'RATE_LIMIT_EXCEEDED',
+    retryAfter: isDevelopment ? 60 : 900
   },
   standardHeaders: true,
   legacyHeaders: false,
-  // Skip rate limiting for successful requests to allow legitimate usage
   skipSuccessfulRequests: false,
-  // Custom key generator to rate limit by IP + email combination
   keyGenerator: (req) => {
     const email = req.body?.email || 'unknown';
     return `${req.ip}-${email}`;
+  },
+  // Add custom headers for better debugging
+  onLimitReached: (req, res) => {
+    console.log(`🚫 Rate limit exceeded for magic link send: ${req.ip} - ${req.body?.email}`);
   }
 });
 
-// Stricter rate limiting for verification attempts
+// Verification rate limiting with development-friendly settings
 const verificationRateLimit = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 10, // Allow more verification attempts as users might make mistakes
+  windowMs: isDevelopment ? 1 * 60 * 1000 : 5 * 60 * 1000, // 1 min dev, 5 min prod
+  max: isDevelopment ? 100 : 10, // 100 attempts dev, 10 attempts prod
   message: {
     success: false,
-    message: 'Too many verification attempts. Please try again later.',
-    code: 'RATE_LIMIT_EXCEEDED'
+    message: isDevelopment
+      ? 'Development verification rate limit exceeded. Please wait 1 minute.'
+      : 'Too many verification attempts. Please try again in 5 minutes.',
+    code: 'VERIFICATION_RATE_LIMIT_EXCEEDED',
+    retryAfter: isDevelopment ? 60 : 300
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Rate limit by IP + email combination for more granular control
+    const email = req.body?.email || 'unknown';
+    return `verify-${req.ip}-${email}`;
+  },
+  onLimitReached: (req, res) => {
+    console.log(`🚫 Verification rate limit exceeded: ${req.ip} - ${req.body?.email}`);
+  }
 });
 
 /**
@@ -56,7 +75,13 @@ router.post('/send', magicLinkRateLimit, magicLinkController.sendMagicLink);
  * @access  Public
  * @body    { token: string, email: string }
  */
-router.post('/verify', verificationRateLimit, magicLinkController.verifyMagicLink);
+router.post('/verify', (req, res, next) => {
+  console.log('🔍 ROUTE: Verification request received', {
+    body: req.body,
+    timestamp: new Date().toISOString()
+  });
+  next();
+}, verificationRateLimit, magicLinkController.verifyMagicLink);
 
 /**
  * @route   GET /api/v1/auth/magic-link/health

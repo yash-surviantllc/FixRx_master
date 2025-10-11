@@ -109,11 +109,14 @@ class MagicLinkAuthService {
   }
 
   /**
-   * Verify magic link token and authenticate user
+   * Verify magic link token and authenticate user with exponential backoff
    */
-  async verifyMagicLink(request: MagicLinkVerifyRequest): Promise<MagicLinkAuthResponse> {
+  async verifyMagicLink(request: MagicLinkVerifyRequest, retryCount: number = 0): Promise<MagicLinkAuthResponse> {
+    const maxRetries = 3;
+    const baseDelay = 1000; // 1 second
+    
     try {
-      console.log('🔐 Verifying magic link token');
+      console.log('🔐 Verifying magic link token', retryCount > 0 ? `(attempt ${retryCount + 1})` : '');
 
       const response = await fetch(`${this.baseUrl}/verify`, {
         method: 'POST',
@@ -130,10 +133,24 @@ class MagicLinkAuthService {
 
       if (!response.ok) {
         console.error('❌ Magic link verification failed:', data);
+        
+        // Handle rate limiting with exponential backoff
+        if (data.code === 'VERIFICATION_RATE_LIMIT_EXCEEDED' && retryCount < maxRetries) {
+          const delay = baseDelay * Math.pow(2, retryCount); // Exponential backoff
+          const retryAfter = data.retryAfter ? data.retryAfter * 1000 : delay;
+          
+          console.log(`⏳ Rate limited. Retrying in ${Math.min(delay, retryAfter)}ms...`);
+          
+          await new Promise(resolve => setTimeout(resolve, Math.min(delay, retryAfter)));
+          return this.verifyMagicLink(request, retryCount + 1);
+        }
+        
+        // Handle other errors with specific codes
         return {
           success: false,
-          message: data.message || 'Invalid or expired magic link',
+          message: this.getErrorMessage(data.code, data.message),
           code: data.code,
+          retryAfter: data.retryAfter,
         };
       }
 
@@ -151,6 +168,15 @@ class MagicLinkAuthService {
 
     } catch (error) {
       console.error('❌ Magic link verification error:', error);
+      
+      // Retry on network errors with exponential backoff
+      if (retryCount < maxRetries && this.isNetworkError(error)) {
+        const delay = baseDelay * Math.pow(2, retryCount);
+        console.log(`🔄 Network error. Retrying in ${delay}ms...`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.verifyMagicLink(request, retryCount + 1);
+      }
       
       // Fallback for development/offline mode
       if (__DEV__ && request.token === 'dev-token') {
@@ -184,6 +210,31 @@ class MagicLinkAuthService {
         code: 'NETWORK_ERROR',
       };
     }
+  }
+
+  /**
+   * Get user-friendly error message based on error code
+   */
+  private getErrorMessage(code: string, defaultMessage: string): string {
+    const errorMessages: Record<string, string> = {
+      'TOKEN_EXPIRED': 'This magic link has expired. Please request a new one.',
+      'TOKEN_ALREADY_USED': 'This magic link has already been used. Please request a new one.',
+      'INVALID_TOKEN': 'Invalid magic link. Please check your email and try again.',
+      'VERIFICATION_RATE_LIMIT_EXCEEDED': 'Too many attempts. Please wait a moment before trying again.',
+      'RATE_LIMIT_EXCEEDED': 'Too many requests. Please wait before requesting another magic link.',
+    };
+    
+    return errorMessages[code] || defaultMessage;
+  }
+
+  /**
+   * Check if error is a network-related error that should be retried
+   */
+  private isNetworkError(error: any): boolean {
+    return error.name === 'TypeError' || 
+           error.message?.includes('fetch') || 
+           error.message?.includes('network') ||
+           error.code === 'NETWORK_ERROR';
   }
 
   /**

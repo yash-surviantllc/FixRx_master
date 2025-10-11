@@ -17,6 +17,7 @@ import { RootStackParamList, UserType } from '../types/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+import * as AuthSession from 'expo-auth-session';
 
 import { authService } from '../services/authService';
 import { useAppContext } from '../context/AppContext';

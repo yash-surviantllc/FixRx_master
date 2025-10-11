@@ -17,6 +17,34 @@ class TwilioService {
   }
 
   /**
+   * Send plain verification code message
+   */
+  async sendVerificationCode({ to, code, purpose = 'LOGIN' }) {
+    if (!this.isAvailable()) {
+      console.warn('Twilio not available. Verification code cannot be delivered via SMS.');
+      return {
+        success: false,
+        message: 'Twilio not configured'
+      };
+    }
+
+    const body = `Your FixRx verification code is ${code}. It will expire in ${process.env.OTP_EXPIRY_MINUTES || 10} minutes.`;
+
+    const result = await this.sendSMS({
+      to,
+      body,
+      priority: 'high',
+      userId: null,
+      templateId: null
+    });
+
+    return {
+      success: true,
+      data: result
+    };
+  }
+
+  /**
    * Initialize Twilio client
    */
   initialize() {

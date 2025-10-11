@@ -62,11 +62,18 @@ class DeepLinkHandler {
    */
   private parseDeepLink(url: string): DeepLinkParams {
     try {
+      console.log('🔍 Parsing deep link URL:', url);
+      
       const [basePath, queryString = ''] = url.split('?');
       const params = this.parseQueryString(queryString);
+      
+      console.log('🔍 Base path:', basePath);
+      console.log('🔍 Query string:', queryString);
+      console.log('🔍 Parsed params:', params);
 
       // Handle standard web URL: https://host/.../auth/magic-link?token=...&email=...
       if (basePath.includes('/auth/magic-link')) {
+        console.log('✅ Matched web URL pattern');
         return {
           action: 'magic-link',
           token: params.token,
@@ -76,6 +83,7 @@ class DeepLinkHandler {
 
       // Handle custom scheme: fixrx://magic-link?token=...&email=...
       if (basePath.startsWith('fixrx://magic-link')) {
+        console.log('✅ Matched fixrx scheme pattern');
         return {
           action: 'magic-link',
           token: params.token,
@@ -83,6 +91,17 @@ class DeepLinkHandler {
         };
       }
 
+      // Handle Expo development URL: exp://192.168.1.5:8082/--/magic-link?token=...&email=...
+      if (basePath.includes('/--/magic-link') || basePath.includes('magic-link')) {
+        console.log('✅ Matched Expo URL pattern');
+        return {
+          action: 'magic-link',
+          token: params.token,
+          email: params.email,
+        };
+      }
+
+      console.log('❌ No pattern matched for URL:', url);
       return {};
     } catch (error) {
       console.error('❌ URL parsing error:', error);

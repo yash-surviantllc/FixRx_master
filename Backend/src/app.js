@@ -147,6 +147,10 @@ class FixRxApplication {
     const magicLinkRoutes = require('./routes/magicLinkRoutes');
     this.app.use('/api/v1/auth/magic-link', magicLinkRoutes);
 
+    // Phone OTP Authentication Routes
+    const otpRoutes = require('./routes/otpRoutes');
+    this.app.use('/api/v1/auth/otp', otpRoutes);
+
     // Social OAuth Routes (Google, etc.)
     const oauthRoutes = require('./routes/oauthRoutes');
     this.app.use('/api/v1/auth/oauth', oauthRoutes);
@@ -244,41 +248,9 @@ class FixRxApplication {
   }
 
   setupUserRoutes() {
-    // User profile routes
-    this.app.get('/api/v1/users/profile', authenticateToken, async (req, res, next) => {
-      try {
-        const user = await auth0Service.getUserById(req.user.id);
-        
-        res.json({
-          success: true,
-          data: { user }
-        });
-
-      } catch (error) {
-        await monitoringService.trackError({ error, request: req, user: req.user });
-        next(error);
-      }
-    });
-
-    this.app.put('/api/v1/users/profile', authenticateToken, async (req, res, next) => {
-      try {
-        const updates = req.body;
-        
-        await auth0Service.syncUserProfile(req.user.auth0Id, {
-          localData: updates,
-          metadata: updates
-        });
-
-        res.json({
-          success: true,
-          message: 'Profile updated successfully'
-        });
-
-      } catch (error) {
-        await monitoringService.trackError({ error, request: req, user: req.user });
-        next(error);
-      }
-    });
+    // User profile routes - PostgreSQL-based (OTP authentication compatible)
+    const userRoutes = require('./routes/userRoutes');
+    this.app.use('/api/v1/users', userRoutes);
   }
 
   setupVendorRoutes() {
@@ -614,6 +586,10 @@ class FixRxApplication {
     // Mobile app specific routes
     const mobileAppRoutes = require('./routes/mobileAppRoutes');
     this.app.use('/api/v1', mobileAppRoutes);
+    
+    // Web redirect routes for magic links (browser fallback)
+    const webRedirectRoutes = require('./routes/webRedirectRoutes');
+    this.app.use('/magic-link', webRedirectRoutes);
   }
 
   setupErrorHandling() {

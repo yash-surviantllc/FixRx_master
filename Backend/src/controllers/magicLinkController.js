@@ -86,6 +86,12 @@ class MagicLinkController {
    * POST /api/v1/auth/magic-link/verify
    */
   async verifyMagicLink(req, res) {
+    console.log('🔍 CONTROLLER: verifyMagicLink called', {
+      body: req.body,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')?.substring(0, 50)
+    });
+    
     try {
       // Validate request body
       const schema = Joi.object({
@@ -120,10 +126,23 @@ class MagicLinkController {
       );
 
       if (!result.success) {
-        return res.status(400).json({
+        // Determine appropriate status code based on error type
+        let statusCode = 400;
+        let errorCode = 'VERIFICATION_ERROR';
+        
+        if (result.message.includes('expired')) {
+          errorCode = 'TOKEN_EXPIRED';
+        } else if (result.message.includes('used')) {
+          errorCode = 'TOKEN_ALREADY_USED';
+        } else if (result.message.includes('Invalid')) {
+          errorCode = 'INVALID_TOKEN';
+        }
+        
+        return res.status(statusCode).json({
           success: false,
           message: result.message,
-          code: 'VERIFICATION_ERROR'
+          code: errorCode,
+          timestamp: new Date().toISOString()
         });
       }
 
@@ -154,11 +173,20 @@ class MagicLinkController {
       });
 
     } catch (error) {
+      console.error('🚨 CONTROLLER ERROR in verifyMagicLink:', {
+        error: error.message,
+        stack: error.stack?.split('\n').slice(0, 5).join('\n'),
+        requestBody: req.body,
+        errorCode: error.code,
+        errorName: error.name
+      });
+      
       logger.error('Error in verifyMagicLink controller:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error. Please try again.',
-        code: 'INTERNAL_ERROR'
+        code: 'INTERNAL_ERROR',
+        timestamp: new Date().toISOString()
       });
     }
   }
