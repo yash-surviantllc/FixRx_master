@@ -48,14 +48,6 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      [
-        "expo-linking",
-        {
-          "scheme": "fixrx"
-        }
-      ]
-    ]
+    }
   }
 }

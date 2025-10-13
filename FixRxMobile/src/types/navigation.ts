@@ -35,8 +35,8 @@ export type RootStackParamList = {
   AllRecommendations: undefined;
   ContactSelection: { inviteType: 'contractor' | 'friend' };
   MessagePreview: { 
-    selectedContacts: any[];
-    inviteType: 'contractor' | 'friend';
+    selectedContacts?: any[];
+    inviteType?: 'contractor' | 'friend';
   };
   InvitationSuccess: {
     invitationCount: number;

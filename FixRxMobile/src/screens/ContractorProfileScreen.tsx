@@ -316,7 +316,7 @@ const ContractorProfileScreen: React.FC = () => {
               </View>
             ))}
           </View>
-          {contractor.services.length > 6 && (
+          {contractor.services && contractor.services.length > 6 && (
             <TouchableOpacity onPress={() => setShowAllServices(!showAllServices)}>
               <Text style={[styles.showMoreText, { color: colors.primary }]}>
                 {showAllServices ? 'Show less' : `Show all ${contractor.services.length} services`}
