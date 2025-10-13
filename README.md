@@ -36,52 +36,52 @@
 
 ---
 
-## 🎯 **Overview**
+## Overview
 
 FixRx is a modern client-vendor management platform that connects consumers with trusted contractors and service providers. Built with enterprise-grade architecture, it supports 1,000+ concurrent users with sub-500ms API response times.
 
 ### **Key Capabilities**
-- 🔐 **Magic Link Authentication** (Passwordless email authentication)
-- 🔑 **Google OAuth Integration** (Production-ready social authentication)
-- 🌍 **Geographic Search** with proximity-based vendor discovery
-- ⭐ **Four-Category Rating System** (Cost, Quality, Timeliness, Professionalism)
-- 📱 **Contact Integration** with phone directory sync
+- **Magic Link Authentication** (Passwordless email authentication)
+- **Google OAuth Integration** (Production-ready social authentication)
+- **Geographic Search** with proximity-based vendor discovery
+- **Four-Category Rating System** (Cost, Quality, Timeliness, Professionalism)
+- **Contact Integration** with phone directory sync
 - 📧 **Bulk Invitations** via SMS and Email
-- 📊 **Real-time Analytics** and reporting
-- 🔒 **Enterprise Security** with role-based access control
+- **Real-time Analytics** and reporting
+- **Enterprise Security** with role-based access control
 
 ---
 
-## ✨ **Features**
+## Features
 
 ### **For Consumers**
-- 🔍 **Smart Vendor Search** - Find contractors by location, service type, and ratings
-- 📞 **Contact Management** - Import and sync phone directory contacts
+- **Smart Vendor Search** - Find contractors by location, service type, and ratings
+- **Contact Management** - Import and sync phone directory contacts
 - 📧 **Bulk Invitations** - Invite multiple contacts via SMS/Email
 - ⭐ **Rating & Reviews** - Rate vendors across four key categories
 - 📱 **Mobile-First Design** - Responsive interface for all devices
-- 🔔 **Real-time Notifications** - Stay updated on vendor responses
+- **Real-time Notifications** - Stay updated on vendor responses
 
 ### **For Vendors**
-- 🏢 **Business Profiles** - Comprehensive business information and portfolios
-- 📍 **Location Services** - Geographic visibility for local customers
-- 📊 **Analytics Dashboard** - Track ratings, reviews, and performance
-- 💼 **Connection Management** - Manage customer relationships
-- 📸 **Photo Uploads** - Showcase work with image galleries
-- 🏆 **Reputation System** - Build trust through verified ratings
+- **Business Profiles** - Comprehensive business information and portfolios
+- **Location Services** - Geographic visibility for local customers
+- **Analytics Dashboard** - Track ratings, reviews, and performance
+- **Connection Management** - Manage customer relationships
+- **Photo Uploads** - Showcase work with image galleries
+- **Reputation System** - Build trust through verified ratings
 
 ### **Platform Features**
-- 🔐 **Passwordless Authentication** - Magic link email authentication
-- 🔑 **Social Login** - Google OAuth (requires production deployment)
-- 🌐 **RESTful API** - Comprehensive API for third-party integrations
-- 📈 **Scalable Architecture** - Supports 1,000+ concurrent users
-- 🚀 **High Performance** - <500ms API response times
-- 🔒 **Data Security** - GDPR compliant with encryption at rest
-- 📱 **Cross-Platform** - Web and mobile applications
+- **Passwordless Authentication** - Magic link email authentication
+- **Social Login** - Google OAuth (requires production deployment)
+- **RESTful API** - Comprehensive API for third-party integrations
+- **Scalable Architecture** - Supports 1,000+ concurrent users
+- **High Performance** - <500ms API response times
+- **Data Security** - GDPR compliant with encryption at rest
+- **Cross-Platform** - Web and mobile applications
 
 ---
 
-## 🛠️ **Tech Stack**
+## Tech Stack
 
 ### **Backend**
 - **Runtime**: Node.js 18+
@@ -120,7 +120,7 @@ FixRx is a modern client-vendor management platform that connects consumers with
 
 ---
 
-## 🏗️ **Architecture**
+## Architecture
 
 ```mermaid
 graph TB
@@ -157,7 +157,7 @@ graph TB
 
 ---
 
-## 🚀 **Quick Start**
+## Quick Start
 
 ### **Prerequisites**
 - Node.js 18+ and npm
@@ -271,7 +271,7 @@ npm run dev
 
 ---
 
-## 🔧 **Configuration**
+## Configuration
 
 ### **Backend Environment Variables**
 
@@ -362,7 +362,7 @@ VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
    SENDGRID_FROM_NAME=FixRx
    ```
 
-### **📱 Twilio Setup (Optional for SMS)**
+### Twilio Setup (Optional for SMS)
 
 1. **Create Twilio Account**
    - Go to [Twilio](https://www.twilio.com/)
@@ -389,7 +389,7 @@ VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
    TWILIO_PHONE_NUMBER=+1234567890
    ```
 
-### **🔑 Google OAuth Setup (Production Only)**
+### Google OAuth Setup (Production Only)
 
 ⚠️ **Important**: Google OAuth requires your app to be in production mode. It won't work in development/testing mode.
 
@@ -499,7 +499,7 @@ GET    /api/v1/invitations/received # Get received invitations
 
 ---
 
-## 🧪 **Testing**
+## Testing
 
 ### **Backend Testing**
 ```bash
@@ -551,7 +551,7 @@ npm run test:performance
 
 ---
 
-## 🚀 **Deployment**
+## Deployment
 
 ### **Docker Deployment**
 ```bash
@@ -583,14 +583,14 @@ docker-compose logs -f
 
 ---
 
-## 📊 **Performance Metrics**
+## Performance Metrics
 
 ### **Current Performance**
-- ✅ **API Response Time**: <500ms (requirement met)
-- ✅ **Concurrent Users**: 1,000+ supported
-- ✅ **Database Queries**: Optimized with indexing
-- ✅ **Caching**: Redis-based caching layer
-- ✅ **File Upload**: 5MB limit with compression
+- **API Response Time**: <500ms (requirement met)
+- **Concurrent Users**: 1,000+ supported
+- **Database Queries**: Optimized with indexing
+- **Caching**: Redis-based caching layer
+- **File Upload**: 5MB limit with compression
 
 ### **Load Testing Results**
 ```
@@ -604,7 +604,7 @@ Throughput: 2,500 requests/second
 
 ---
 
-## 🤝 **Contributing**
+## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
@@ -624,7 +624,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ---
 
-## 🐛 **Troubleshooting**
+## Troubleshooting
 
 ### **Common Issues**
 
@@ -673,7 +673,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 📞 **Support**
+## Support
 
 - **Documentation**: [docs.fixrx.com](https://docs.fixrx.com)
 - **Issues**: [GitHub Issues](https://github.com/yourusername/fixrx/issues)
@@ -682,9 +682,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 🗺️ **Roadmap**
+## Roadmap
 
-### **Phase 1** ✅ (Current)
+### Phase 1 (Current)
 - [x] Authentication system
 - [x] Vendor/Consumer profiles
 - [x] Geographic search
@@ -692,14 +692,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [x] Contact management
 - [x] Invitation system
 
-### **Phase 2** ✅ (Completed)
+### Phase 2 (Completed)
 - [x] Mobile app (React Native)
 - [x] Advanced analytics
 - [x] Push notifications
 - [x] Performance optimization
 - [x] Real-time monitoring
 
-### **Phase 3** 📋 (Planned)
+### Phase 3 (Planned)
 - [ ] Multi-language support
 - [ ] Advanced reporting
 - [ ] API marketplace
@@ -709,8 +709,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
   
   <div align="center">
-  **Built with ❤️ by the FixRx Team**
+  **Built by the FixRx Team**
 
-  [⭐ Star us on GitHub](https://github.com/yash-surviantllc/FixRx_master) • [🐛 Report Bug](https://github.com/yash-surviantllc/FixRx_master/issues) • [💡 Request Feature](https://github.com/yash-surviantllc/FixRx_master/issues)
+  [Star us on GitHub](https://github.com/yash-surviantllc/FixRx_master) • [Report Bug](https://github.com/yash-surviantllc/FixRx_master/issues) • [Request Feature](https://github.com/yash-surviantllc/FixRx_master/issues)
 
   </div>
