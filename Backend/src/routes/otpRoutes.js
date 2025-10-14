@@ -8,7 +8,7 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 
 const sendRateLimit = rateLimit({
   windowMs: isDevelopment ? 60 * 1000 : 5 * 60 * 1000,
-  max: isDevelopment ? 30 : 5,
+  max: isDevelopment ? 100 : 5,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -24,7 +24,7 @@ const sendRateLimit = rateLimit({
 
 const verifyRateLimit = rateLimit({
   windowMs: isDevelopment ? 60 * 1000 : 5 * 60 * 1000,
-  max: isDevelopment ? 60 : 10,
+  max: isDevelopment ? 200 : 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: {

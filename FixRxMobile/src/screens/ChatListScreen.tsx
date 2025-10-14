@@ -1,107 +1,239 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  FlatList, 
-  TouchableOpacity, 
-  TextInput, 
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  TextInput,
   Image,
   ActivityIndicator,
   SafeAreaView,
-  StatusBar
+  StatusBar,
+  RefreshControl
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
+import messagingService from '../services/messagingService';
+import { Conversation } from '../types/messaging';
+import { useWebSocket } from '../services/websocketService';
+import { useAppContext } from '../context/AppContext';
 
 type ChatListScreenNavigationProp = StackNavigationProp<RootStackParamList, 'ChatList'>;
-
-// Mock data for chat conversations
-const MOCK_CONVERSATIONS = [
-  {
-    id: '1',
-    userId: 'user1',
-    userName: 'John Smith',
-    userImage: 'https://randomuser.me/api/portraits/men/1.jpg',
-    lastMessage: 'Hi there! I was wondering about the availability for next week...',
-    time: '2h ago',
-    unreadCount: 2,
-    isOnline: true,
-    lastActive: '2h ago'
-  },
-  {
-    id: '2',
-    userId: 'user2',
-    userName: 'Sarah Johnson',
-    userImage: 'https://randomuser.me/api/portraits/women/2.jpg',
-    lastMessage: 'Thanks for the great service!',
-    time: '1d ago',
-    unreadCount: 0,
-    isOnline: false,
-    lastActive: '5h ago'
-  },
-  {
-    id: '3',
-    userId: 'user3',
-    userName: 'Michael Brown',
-    userImage: 'https://randomuser.me/api/portraits/men/3.jpg',
-    lastMessage: 'Can we reschedule our appointment?',
-    time: '2d ago',
-    unreadCount: 1,
-    isOnline: true,
-    lastActive: '30m ago'
-  },
-  {
-    id: '4',
-    userId: 'user4',
-    userName: 'Emily Davis',
-    userImage: 'https://randomuser.me/api/portraits/women/4.jpg',
-    lastMessage: 'I\'ve sent the payment. Please confirm once received.',
-    time: '3d ago',
-    unreadCount: 0,
-    isOnline: false,
-    lastActive: '1d ago'
-  },
-  {
-    id: '5',
-    userId: 'user5',
-    userName: 'David Wilson',
-    userImage: 'https://randomuser.me/api/portraits/men/5.jpg',
-    lastMessage: 'The work looks great, thank you!',
-    time: '1w ago',
-    unreadCount: 0,
-    isOnline: true,
-    lastActive: '2h ago'
-  },
-];
 
 const ChatListScreen: React.FC = () => {
   const navigation = useNavigation<ChatListScreenNavigationProp>();
   const { colors, isDarkMode } = useTheme();
+  const { connect, on, joinConversation, leaveConversation } = useWebSocket();
+  const { userProfile } = useAppContext();
+  const currentUserId = userProfile?.id;
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [conversations, setConversations] = useState<typeof MOCK_CONVERSATIONS>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const joinedConversationIdsRef = useRef<Set<string>>(new Set());
 
-  // Simulate loading conversations
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setConversations(MOCK_CONVERSATIONS);
-      setIsLoading(false);
-    }, 800);
+  const normalizeConversation = useCallback((conversation: Conversation) => {
+    const primaryParticipant = conversation.participants?.find((participant) => participant.userId !== currentUserId);
 
-    return () => clearTimeout(timer);
+    return {
+      id: conversation.id,
+      userId: primaryParticipant?.userId || conversation.id,
+      userName: primaryParticipant
+        ? `${primaryParticipant.firstName || ''} ${primaryParticipant.lastName || ''}`.trim() || 'Conversation'
+        : 'Conversation',
+      userImage: primaryParticipant?.avatarUrl || 'https://via.placeholder.com/50',
+      lastMessage: conversation.lastMessage?.content || 'Start a conversation',
+      time: conversation.lastMessage?.createdAt
+        ? new Date(conversation.lastMessage.createdAt).toLocaleString()
+        : new Date(conversation.updatedAt || conversation.createdAt).toLocaleString(),
+      unreadCount: conversation.unreadCount || 0,
+      isOnline: false,
+      lastActive: '',
+    };
   }, []);
 
-  // Filter conversations based on search query
-  const filteredConversations = conversations.filter(conversation => 
-    conversation.userName.toLowerCase().includes(searchQuery.toLowerCase())
+  const loadConversations = useCallback(
+    async (showLoading = true) => {
+      if (showLoading) {
+        setIsLoading(true);
+      }
+
+      const response = await messagingService.listConversations();
+      if (response.success && response.data?.conversations) {
+        setConversations(response.data.conversations);
+        response.data.conversations.forEach((conversation) => {
+          if (!joinedConversationIdsRef.current.has(conversation.id)) {
+            joinConversation(conversation.id);
+            joinedConversationIdsRef.current.add(conversation.id);
+          }
+        });
+      }
+
+      if (showLoading) {
+        setIsLoading(false);
+      }
+    },
+    [joinConversation]
   );
 
+  const refresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await loadConversations(false);
+    setIsRefreshing(false);
+  }, [loadConversations]);
+
+  useEffect(() => {
+    connect();
+  }, [connect]);
+
+  useEffect(() => {
+    loadConversations();
+
+    const unsubscribeMessage = on('message:new', (message) => {
+      if (!message?.conversationId) {
+        return;
+      }
+      let shouldJoinConversation = false;
+      setConversations((prev) => {
+        const next = [...prev];
+        const conversationId = message.conversationId as string;
+        const existingIndex = next.findIndex((conversation) => conversation.id === conversationId);
+
+        const baseLastMessage: NonNullable<Conversation['lastMessage']> = {
+          id: message.id,
+          conversationId,
+          senderId: message.senderId,
+          messageType: message.messageType,
+          content: message.content || '',
+          metadata: message.metadata || {},
+          attachments: message.attachments,
+          createdAt: message.createdAt,
+          updatedAt: message.updatedAt,
+          deletedAt: message.deletedAt,
+          sender: message.sender,
+        };
+
+        if (existingIndex !== -1) {
+          const existing = next[existingIndex];
+          const isFromOther = message.senderId && currentUserId
+            ? message.senderId !== currentUserId
+            : true;
+
+          next[existingIndex] = {
+            ...existing,
+            lastMessage: baseLastMessage,
+            unreadCount: isFromOther ? (existing.unreadCount || 0) + 1 : existing.unreadCount || 0,
+            updatedAt: message.createdAt || existing.updatedAt,
+          };
+        } else {
+          shouldJoinConversation = true;
+          const now = message.createdAt || new Date().toISOString();
+          const newConversation: Conversation = {
+            id: conversationId,
+            title: undefined,
+            conversationType: 'consumer_vendor',
+            createdAt: now,
+            updatedAt: now,
+            metadata: {},
+            participants: [],
+            lastMessage: baseLastMessage,
+            unreadCount:
+              message.senderId && currentUserId && message.senderId !== currentUserId
+                ? 1
+                : 0,
+          };
+          next.unshift(newConversation);
+        }
+
+        next.sort((a, b) => {
+          const aTime = new Date(a.lastMessage?.createdAt || a.updatedAt || a.createdAt).getTime();
+          const bTime = new Date(b.lastMessage?.createdAt || b.updatedAt || b.createdAt).getTime();
+          return bTime - aTime;
+        });
+
+        return next;
+      });
+
+      if (shouldJoinConversation && !joinedConversationIdsRef.current.has(message.conversationId)) {
+        joinConversation(message.conversationId);
+        joinedConversationIdsRef.current.add(message.conversationId);
+      }
+    });
+
+    const unsubscribeCreated = on('conversation:created', async (payload: Conversation) => {
+      if (!payload?.id) {
+        return;
+      }
+
+      let shouldJoinConversation = false;
+      setConversations((prev) => {
+        const exists = prev.some((item) => item.id === payload.id);
+        if (exists) {
+          return prev;
+        }
+        shouldJoinConversation = true;
+        return prev;
+      });
+
+      if (!shouldJoinConversation) {
+        return;
+      }
+
+      try {
+        const conversationResponse = await messagingService.getConversation(payload.id);
+        if (conversationResponse.success && conversationResponse.data) {
+          setConversations((prev) => [conversationResponse.data!, ...prev]);
+        } else {
+          setConversations((prev) => [payload, ...prev]);
+        }
+      } catch (serviceError) {
+        console.error('Failed to hydrate conversation:', serviceError);
+        setConversations((prev) => [payload, ...prev]);
+      }
+
+      if (!joinedConversationIdsRef.current.has(payload.id)) {
+        joinConversation(payload.id);
+        joinedConversationIdsRef.current.add(payload.id);
+      }
+    });
+
+    const unsubscribeRead = on('conversation:read', (payload) => {
+      if (!payload?.conversationId) {
+        return;
+      }
+
+      if (payload.userId === currentUserId) {
+        setConversations((prev) =>
+          prev.map((conversation) =>
+            conversation.id === payload.conversationId
+              ? { ...conversation, unreadCount: 0 }
+              : conversation
+          )
+        );
+      }
+    });
+
+    return () => {
+      unsubscribeMessage?.();
+      unsubscribeCreated?.();
+      unsubscribeRead?.();
+      joinedConversationIdsRef.current.forEach((id) => leaveConversation(id));
+      joinedConversationIdsRef.current.clear();
+    };
+  }, [loadConversations, on, joinConversation, leaveConversation, currentUserId]);
+
+  const normalizedConversations = conversations
+    .map(normalizeConversation)
+    .filter((conversation) =>
+      conversation.userName.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
   // Render each conversation item
-  const renderConversation = ({ item }: { item: typeof MOCK_CONVERSATIONS[0] }) => (
+  const renderConversation = ({ item }: { item: ReturnType<typeof normalizeConversation> }) => (
     <TouchableOpacity 
       style={[styles.conversationItem, { borderBottomColor: colors.border }]}
       onPress={() => {
@@ -214,13 +346,21 @@ const ChatListScreen: React.FC = () => {
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, { color: colors.secondaryText }]}>Loading conversations...</Text>
         </View>
-      ) : filteredConversations.length > 0 ? (
+      ) : normalizedConversations.length > 0 ? (
         <FlatList
-          data={filteredConversations}
+          data={normalizedConversations}
           renderItem={renderConversation}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={refresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
         />
       ) : (
         <View style={styles.emptyState}>

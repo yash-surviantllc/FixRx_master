@@ -19,28 +19,21 @@ async function runMigration() {
     await client.connect();
     console.log('✅ Connected to database successfully');
 
-    // Read migration file
-    const migrationPath = path.join(__dirname, 'src', 'database', 'migrations', '002_contact_management_tables.sql');
-    const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
+    const migrationFiles = [
+      '002_contact_management_tables.sql',
+      '003_messaging_tables.sql'
+    ];
 
-    console.log('🔄 Running contact management migration...');
-    
-    // Execute migration
-    await client.query(migrationSQL);
-    
-    console.log('✅ Contact management tables created successfully!');
-    console.log('\n📋 Created tables:');
-    console.log('   - contacts');
-    console.log('   - contact_import_batches');
-    console.log('   - sms_messages');
-    console.log('   - sms_bulk_batches');
-    console.log('   - invitations');
-    console.log('   - invitation_bulk_batches');
-    console.log('   - invitation_logs');
-    console.log('   - sms_templates');
-    console.log('   - contact_sync_sessions');
-    
-    // Verify tables were created
+    for (const file of migrationFiles) {
+      const migrationPath = path.join(__dirname, 'src', 'database', 'migrations', file);
+      console.log(`\n🔄 Running migration ${file}...`);
+
+      const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
+      await client.query(migrationSQL);
+
+      console.log(`✅ Migration ${file} executed successfully!`);
+    }
+
     const tableCheck = await client.query(`
       SELECT table_name 
       FROM information_schema.tables 
@@ -48,16 +41,17 @@ async function runMigration() {
         AND table_name IN (
           'contacts', 'contact_import_batches', 'sms_messages', 
           'sms_bulk_batches', 'invitations', 'invitation_bulk_batches',
-          'invitation_logs', 'sms_templates', 'contact_sync_sessions'
+          'invitation_logs', 'sms_templates', 'contact_sync_sessions',
+          'conversations', 'conversation_participants', 'messages', 'message_reads'
         )
       ORDER BY table_name
     `);
-    
+
     console.log('\n✅ Verified tables:');
     tableCheck.rows.forEach(row => {
       console.log(`   ✓ ${row.table_name}`);
     });
-    
+
     console.log('\n🎉 Migration completed successfully!');
     
   } catch (error) {

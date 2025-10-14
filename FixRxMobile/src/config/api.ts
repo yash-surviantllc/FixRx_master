@@ -88,6 +88,11 @@ export const API_ENDPOINTS = {
     SYNC: '/contacts/sync',
     SEARCH: '/contacts/search',
   },
+
+  // Messaging
+  MESSAGING: {
+    CONVERSATIONS: '/messages',
+  },
 };
 
 // HTTP Status Codes

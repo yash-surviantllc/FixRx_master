@@ -10,6 +10,7 @@ const { queueManager } = require('./services/queueManager');
 const { auth0Service } = require('./services/auth0Service');
 const { geoSearchService } = require('./services/geoSearchService');
 const { monitoringService } = require('./services/monitoringService');
+const socketManager = require('./services/socketManager');
 
 const {
   rateLimiters,
@@ -135,6 +136,7 @@ class FixRxApplication {
     this.setupCommunicationRoutes();
     this.setupContactRoutes();
     this.setupInvitationRoutes();
+    this.setupMessagingRoutes();
     this.setupMonitoringRoutes();
     this.setupSystemRoutes();
     this.setupMobileAppRoutes();
@@ -456,6 +458,11 @@ class FixRxApplication {
     this.app.use('/api/v1/invitations', invitationRoutes);
   }
 
+  setupMessagingRoutes() {
+    const messagingRoutes = require('./routes/messagingRoutes');
+    this.app.use('/api/v1/messages', rateLimiters.api, messagingRoutes);
+  }
+
   setupCommunicationRoutes() {
     // SMS and Email routes using queue system
     this.app.post('/api/v1/communications/sms/send', authenticateToken, async (req, res, next) => {
@@ -622,6 +629,7 @@ class FixRxApplication {
         `);
       });
 
+      socketManager.initialize(this.server);
       return this.server;
 
     } catch (error) {
@@ -639,6 +647,7 @@ class FixRxApplication {
       // Gracefully shutdown services
       await queueManager.close();
       await dbManager.close();
+      socketManager.close();
 
       console.log('✅ FixRx Application Server Stopped');
 

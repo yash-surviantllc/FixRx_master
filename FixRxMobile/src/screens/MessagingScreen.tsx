@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,18 @@ import {
   Platform,
   Alert,
   Modal,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import messagingService from '../services/messagingService';
+import { Message as ConversationMessage, Conversation } from '../types/messaging';
+import { useWebSocket } from '../services/websocketService';
+import { useAppContext } from '../context/AppContext';
 
 type MessagingScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Messaging'>;
 type MessagingScreenRouteProp = RouteProp<RootStackParamList, 'Messaging'>;
@@ -25,123 +31,66 @@ type MessagingScreenRouteProp = RouteProp<RootStackParamList, 'Messaging'>;
 interface Message {
   id: string;
   type: 'text' | 'image' | 'appointment' | 'quote' | 'payment';
-  content: string;
+  content?: string | null;
   sender: 'user' | 'other';
   timestamp: string;
+  createdAt: string;
   imageUrl?: string;
   appointmentData?: {
     date: string;
     time: string;
     service: string;
   };
-  quotedMessage?: {
-    content: string;
-    sender: string;
-  };
   paymentData?: {
     amount: number;
     description: string;
-    status: 'pending' | 'paid';
+    status: 'pending' | 'paid' | 'failed';
   };
+  quotedMessage?: {
+    sender: string;
+    content: string;
+  };
+  serviceMessageId?: string;
 }
 
 // Placeholder messages for demo
-const PLACEHOLDER_MESSAGES: Message[] = [
-  {
-    id: '1',
-    type: 'text',
-    content: 'Hi! I need help with electrical work.',
-    sender: 'user',
-    timestamp: '9:34 AM',
-  },
-  {
-    id: '2',
-    type: 'text',
-    content: 'Sure! What kind of electrical work do you need?',
-    sender: 'other',
-    timestamp: '9:35 AM',
-  },
-  {
-    id: '3',
-    type: 'text',
-    content: 'I need to install new outlets in my living room and fix some wiring issues.',
-    sender: 'user',
-    timestamp: '9:36 AM',
-  },
-  {
-    id: '4',
-    type: 'image',
-    content: 'Here\'s a photo of the area',
-    sender: 'user',
-    timestamp: '9:37 AM',
-    imageUrl: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=400',
-  },
-  {
-    id: '5',
-    type: 'text',
-    content: 'I can help with that. Let me check my schedule.',
-    sender: 'other',
-    timestamp: '9:40 AM',
-  },
-  {
-    id: '6',
-    type: 'appointment',
-    content: 'How about this time?',
-    sender: 'other',
-    timestamp: '10:10 AM',
-    appointmentData: {
-      date: 'Tomorrow, Sep 16',
-      time: '2:00 PM - 4:00 PM',
-      service: 'Electrical Work Service',
-    },
-  },
-  {
-    id: '7',
-    type: 'text',
-    content: 'Looks good! When can you start?',
-    sender: 'user',
-    timestamp: '10:02 AM',
-  },
-  {
-    id: '8',
-    type: 'quote',
-    content: 'I can start tomorrow at the scheduled time.',
-    sender: 'other',
-    timestamp: '10:15 AM',
-    quotedMessage: {
-      content: 'Looks good! When can you start?',
-      sender: 'You',
-    },
-  },
-  {
-    id: '9',
-    type: 'payment',
-    content: 'Payment request for electrical work',
-    sender: 'other',
-    timestamp: '10:20 AM',
-    paymentData: {
-      amount: 350.00,
-      description: 'Electrical Work Service - Outlet Installation',
-      status: 'pending',
-    },
-  },
-];
-
 const MessagingScreen: React.FC = () => {
   const navigation = useNavigation<MessagingScreenNavigationProp>();
   const route = useRoute<MessagingScreenRouteProp>();
   const { isDarkMode } = useTheme();
   const isDark = isDarkMode;
-  
-  const [messages, setMessages] = useState<Message[]>(PLACEHOLDER_MESSAGES);
+  const { userProfile } = useAppContext();
+  const currentUserId = userProfile?.id;
+  const {
+    connect,
+    joinConversation,
+    leaveConversation,
+    on,
+    startTyping,
+    stopTyping,
+    connectionState,
+  } = useWebSocket();
+
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [conversation, setConversation] = useState<Conversation | null>(null);
   const [inputText, setInputText] = useState('');
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [otherTyping, setOtherTyping] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isTypingRef = useRef(false);
+  const lastReadMessageIdRef = useRef<string | null>(null);
+  const isInitialLoadRef = useRef(true);
+  const [isManualFallback, setIsManualFallback] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const conversationId = route.params?.conversationId || 'default';
-  const userName = route.params?.userName || 'User';
-  const userImage = route.params?.userImage || 'https://randomuser.me/api/portraits/women/1.jpg';
-  const isOnline = route.params?.isOnline ?? false;
+  const conversationId = route.params?.conversationId;
+  const fallbackName = route.params?.userName || 'Conversation';
+  const fallbackImage = route.params?.userImage || 'https://via.placeholder.com/100';
+  const fallbackOnline = route.params?.isOnline ?? false;
 
   const colors = {
     background: isDark ? '#000000' : '#FFFFFF',
@@ -155,24 +104,460 @@ const MessagingScreen: React.FC = () => {
     inputBackground: isDark ? '#1C1C1E' : '#F9FAFB',
   };
 
-  const handleSend = () => {
-    if (inputText.trim()) {
-      const newMessage: Message = {
-        id: Date.now().toString(),
-        type: 'text',
-        content: inputText.trim(),
-        sender: 'user',
-        timestamp: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-      };
-      setMessages([...messages, newMessage]);
-      setInputText('');
-      
-      // Scroll to bottom
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+  const formatTimestamp = useCallback((isoDate?: string) => {
+    if (!isoDate) {
+      return '';
     }
-  };
+
+    try {
+      return new Date(isoDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    } catch (error) {
+      return '';
+    }
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    requestAnimationFrame(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    });
+  }, []);
+
+  const isBackendMessageId = useCallback((maybeId?: string | null) => {
+    if (!maybeId) {
+      return false;
+    }
+
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(maybeId);
+  }, []);
+
+  const markConversationAsRead = useCallback(
+    async (lastMessageId?: string | null) => {
+      if (
+        !conversationId ||
+        !lastMessageId ||
+        lastReadMessageIdRef.current === lastMessageId ||
+        !isBackendMessageId(lastMessageId)
+      ) {
+        return;
+      }
+
+      lastReadMessageIdRef.current = lastMessageId;
+
+      try {
+        await messagingService.markConversationRead(conversationId, { lastMessageId });
+        setConversation((prev) =>
+          prev
+            ? {
+                ...prev,
+                unreadCount: 0,
+              }
+            : prev
+        );
+      } catch (serviceError) {
+        console.error('Failed to mark conversation read:', serviceError);
+      }
+    },
+    [conversationId, isBackendMessageId]
+  );
+
+  const mapServiceMessage = useCallback(
+    (serviceMessage: ConversationMessage): Message => {
+      let type: Message['type'] = 'text';
+      if (serviceMessage.messageType === 'image') {
+        type = 'image';
+      } else if (serviceMessage.messageType === 'system') {
+        type = 'text';
+      }
+
+      const mapped: Message = {
+        id: `msg-${serviceMessage.id}`,
+        serviceMessageId: serviceMessage.id,
+        type,
+        content: serviceMessage.content ?? '',
+        sender: serviceMessage.senderId === currentUserId ? 'user' : 'other',
+        timestamp: formatTimestamp(serviceMessage.createdAt),
+        createdAt: serviceMessage.createdAt,
+      };
+
+      if (type === 'image') {
+        const attachmentCandidate = Array.isArray(serviceMessage.attachments)
+          ? serviceMessage.attachments[0]
+          : undefined;
+
+        mapped.imageUrl =
+          (serviceMessage.metadata && serviceMessage.metadata.imageUrl) ||
+          (attachmentCandidate && (attachmentCandidate.url || attachmentCandidate.uri));
+      }
+
+      return mapped;
+    },
+    [currentUserId, formatTimestamp]
+  );
+
+  const setMessagesFromService = useCallback(
+    (serviceMessages: ConversationMessage[] = []) => {
+      const mapped = serviceMessages.map(mapServiceMessage);
+      mapped.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      setMessages(mapped);
+
+      if (mapped.length > 0) {
+        const lastMessage = mapped[mapped.length - 1];
+        markConversationAsRead(lastMessage.serviceMessageId || lastMessage.id);
+        scrollToBottom();
+      }
+    },
+    [mapServiceMessage, markConversationAsRead, scrollToBottom]
+  );
+
+  const loadMessages = useCallback(
+    async (opts: { showLoader?: boolean; params?: { limit?: number; before?: string } } = {}) => {
+      if (!conversationId) {
+        return;
+      }
+
+      const { showLoader = false, params } = opts;
+
+      if (showLoader) {
+        setIsLoading(true);
+      }
+
+      const response = await messagingService.getMessages(conversationId, params);
+      if (response.success && response.data?.messages) {
+        setMessagesFromService(response.data.messages);
+      } else if (!response.success) {
+        setError(response.error || 'Unable to load messages');
+      }
+
+      if (showLoader) {
+        setIsLoading(false);
+      }
+    },
+    [conversationId, setMessagesFromService]
+  );
+
+  const loadConversation = useCallback(async () => {
+    if (!conversationId) {
+      setError('Conversation not found');
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      await connect();
+
+      const [conversationResponse, messagesResponse] = await Promise.all([
+        messagingService.getConversation(conversationId),
+        messagingService.getMessages(conversationId),
+      ]);
+
+      if (conversationResponse.success && conversationResponse.data) {
+        setConversation(conversationResponse.data);
+      } else {
+        setIsManualFallback(true);
+      }
+
+      if (messagesResponse.success && messagesResponse.data?.messages) {
+        setMessagesFromService(messagesResponse.data.messages);
+      } else if (!messagesResponse.success) {
+        setError(messagesResponse.error || 'Unable to load messages');
+      }
+
+      if (conversationId) {
+        joinConversation(conversationId);
+      }
+    } catch (serviceError) {
+      console.error('Failed to load conversation:', serviceError);
+      setError('Unable to load conversation');
+    } finally {
+      setIsLoading(false);
+      isInitialLoadRef.current = false;
+    }
+  }, [connect, conversationId, joinConversation, setMessagesFromService]);
+
+  const handleRefresh = useCallback(async () => {
+    if (!conversationId) {
+      return;
+    }
+
+    setIsRefreshing(true);
+    await loadMessages({ showLoader: false });
+    setIsRefreshing(false);
+  }, [conversationId, loadMessages]);
+
+  const stopTypingWithDelay = useCallback(
+    (conversationIdentifier: string) => {
+      if (!conversationIdentifier) {
+        return;
+      }
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      typingTimeoutRef.current = setTimeout(() => {
+        if (connectionState === 'connected') {
+          stopTyping(conversationIdentifier);
+        } else if (!isManualFallback) {
+          messagingService.setTyping(conversationIdentifier, false).catch((serviceError) => {
+            console.error('Failed to update typing (REST fallback):', serviceError);
+          });
+        }
+        isTypingRef.current = false;
+        typingTimeoutRef.current = null;
+      }, 2000);
+    },
+    [connectionState, isManualFallback, stopTyping]
+  );
+
+  const handleInputChange = useCallback(
+    (text: string) => {
+      setInputText(text);
+
+      if (!conversationId) {
+        return;
+      }
+
+      if (!isTypingRef.current) {
+        if (connectionState === 'connected') {
+          startTyping(conversationId);
+        } else if (!isManualFallback) {
+          messagingService.setTyping(conversationId, true).catch((serviceError) => {
+            console.error('Failed to update typing (REST fallback):', serviceError);
+          });
+        }
+        isTypingRef.current = true;
+      }
+
+      stopTypingWithDelay(conversationId);
+    },
+    [connectionState, conversationId, isManualFallback, startTyping, stopTypingWithDelay]
+  );
+
+  const handleSend = useCallback(async () => {
+    if (!conversationId || !inputText.trim()) {
+      return;
+    }
+
+    const trimmed = inputText.trim();
+    const optimisticId = `temp-${Date.now()}`;
+    const optimisticMessage: Message = {
+      id: optimisticId,
+      serviceMessageId: optimisticId,
+      type: 'text',
+      content: trimmed,
+      sender: 'user',
+      timestamp: formatTimestamp(new Date().toISOString()),
+      createdAt: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+    setInputText('');
+    scrollToBottom();
+    if (connectionState === 'connected') {
+      stopTyping(conversationId);
+    } else if (!isManualFallback) {
+      messagingService.setTyping(conversationId, false).catch((serviceError) => {
+        console.error('Failed to update typing (REST fallback):', serviceError);
+      });
+    }
+    isTypingRef.current = false;
+
+    setIsSending(true);
+
+    try {
+      const response = await messagingService.sendMessage(conversationId, {
+        content: trimmed,
+        messageType: 'text',
+      });
+
+      if (response.success && response.data?.message) {
+        const mapped = mapServiceMessage(response.data.message);
+        setMessages((prev) => {
+          const next = prev.filter((msg) => msg.id !== optimisticId);
+          next.push(mapped);
+          next.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          return next;
+        });
+        setConversation((prev) =>
+          prev
+            ? {
+                ...prev,
+                lastMessage: response.data!.message,
+                updatedAt: response.data!.message.createdAt,
+              }
+            : prev
+        );
+        markConversationAsRead(response.data.message.id);
+      } else {
+        setError(response.error || 'Failed to send message');
+        setIsManualFallback(true);
+      }
+    } catch (serviceError) {
+      console.error('Failed to send message:', serviceError);
+      setError('Failed to send message');
+    } finally {
+      setIsSending(false);
+    }
+  }, [conversationId, inputText, formatTimestamp, mapServiceMessage, markConversationAsRead, scrollToBottom, stopTyping]);
+
+  const handleIncomingMessage = useCallback(
+    (serviceMessage: ConversationMessage) => {
+      if (!serviceMessage || serviceMessage.conversationId !== conversationId) {
+        return;
+      }
+
+      const mapped = mapServiceMessage(serviceMessage);
+
+      setMessages((prev) => {
+        const existingIndex = prev.findIndex(
+          (msg) =>
+            msg.serviceMessageId === mapped.serviceMessageId ||
+            msg.id === mapped.id
+        );
+
+        if (existingIndex !== -1) {
+          const next = [...prev];
+          next[existingIndex] = mapped;
+          return next;
+        }
+
+        const next = [...prev, mapped];
+        next.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        return next;
+      });
+
+      setConversation((prev) =>
+        prev
+          ? {
+              ...prev,
+              lastMessage: serviceMessage,
+              updatedAt: serviceMessage.createdAt,
+            }
+          : prev
+      );
+
+      if (!currentUserId || serviceMessage.senderId !== currentUserId) {
+        markConversationAsRead(serviceMessage.id);
+      }
+
+      setTimeout(() => scrollToBottom(), 0);
+    },
+    [conversationId, currentUserId, mapServiceMessage, markConversationAsRead, scrollToBottom]
+  );
+
+  const headerParticipant = useMemo(() => {
+    if (!conversation || !conversation.participants || !currentUserId) {
+      return null;
+    }
+
+    return conversation.participants.find((participant) => participant.userId !== currentUserId) || null;
+  }, [conversation, currentUserId]);
+
+  const headerName = useMemo(() => {
+    if (headerParticipant) {
+      const first = headerParticipant.firstName || '';
+      const last = headerParticipant.lastName || '';
+      const combined = `${first} ${last}`.trim();
+      if (combined.length > 0) {
+        return combined;
+      }
+      if (headerParticipant.email) {
+        return headerParticipant.email;
+      }
+    }
+
+    return conversation?.title || fallbackName;
+  }, [conversation?.title, fallbackName, headerParticipant]);
+
+  const headerImage = useMemo(() => {
+    if (headerParticipant?.avatarUrl) {
+      return headerParticipant.avatarUrl;
+    }
+
+    return fallbackImage;
+  }, [fallbackImage, headerParticipant?.avatarUrl]);
+
+  const headerOnline = useMemo(() => {
+    if (typeof conversation?.metadata?.isOnline === 'boolean') {
+      return conversation.metadata.isOnline;
+    }
+
+    return fallbackOnline;
+  }, [conversation?.metadata, fallbackOnline]);
+
+  const dismissError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadConversation();
+
+      return () => {
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = null;
+        }
+
+        if (conversationId) {
+          leaveConversation(conversationId);
+          stopTyping(conversationId);
+        }
+
+        isTypingRef.current = false;
+        setOtherTyping(false);
+      };
+    }, [conversationId, leaveConversation, loadConversation, stopTyping])
+  );
+
+  useEffect(() => {
+    if (!conversationId) {
+      return;
+    }
+
+    const unsubscribeMessage = on('message:new', (incoming: ConversationMessage) => {
+      if (!incoming) {
+        return;
+      }
+      handleIncomingMessage(incoming);
+    });
+
+    const unsubscribeTyping = on('conversation:typing', (payload) => {
+      if (!payload || payload.conversationId !== conversationId) {
+        return;
+      }
+      if (payload.userId && payload.userId === currentUserId) {
+        return;
+      }
+      setOtherTyping(Boolean(payload.isTyping));
+    });
+
+    const unsubscribeRead = on('conversation:read', (payload) => {
+      if (!payload || payload.conversationId !== conversationId) {
+        return;
+      }
+      if (payload.userId && payload.userId !== currentUserId) {
+        return;
+      }
+      setConversation((prev) =>
+        prev
+          ? {
+              ...prev,
+              unreadCount: 0,
+            }
+          : prev
+      );
+    });
+
+    return () => {
+      unsubscribeMessage?.();
+      unsubscribeTyping?.();
+      unsubscribeRead?.();
+    };
+  }, [conversationId, currentUserId, handleIncomingMessage, on]);
 
   const renderTextMessage = (message: Message) => (
     <View
@@ -435,18 +820,18 @@ const MessagingScreen: React.FC = () => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        
+
         <View style={styles.headerInfo}>
           <Image
-            source={{ uri: userImage }}
+            source={{ uri: headerImage }}
             style={styles.avatar}
           />
           <View style={styles.headerText}>
-            <Text style={[styles.headerName, { color: colors.text }]}>{userName}</Text>
+            <Text style={[styles.headerName, { color: colors.text }]}>{headerName}</Text>
             <View style={styles.statusContainer}>
-              {isOnline && <View style={styles.onlineIndicator} />}
+              {headerOnline && <View style={styles.onlineIndicator} />}
               <Text style={[styles.headerStatus, { color: colors.secondaryText }]}>
-                {isOnline ? 'Available' : 'Offline'}
+                {otherTyping ? 'Typing…' : headerOnline ? 'Available' : 'Offline'}
               </Text>
             </View>
           </View>
@@ -461,6 +846,18 @@ const MessagingScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       </View>
+
+      {error && (
+        <TouchableOpacity
+          style={[styles.errorBanner, { backgroundColor: isDark ? 'rgba(239,68,68,0.15)' : '#FEE2E2', borderColor: isDark ? 'rgba(239,68,68,0.35)' : '#FCA5A5' }]}
+          activeOpacity={0.8}
+          onPress={dismissError}
+        >
+          <Ionicons name="warning" size={18} color="#DC2626" style={{ marginRight: 8 }} />
+          <Text style={[styles.errorText, { color: isDark ? '#FEE2E2' : '#B91C1C' }]}>{error}</Text>
+          <Ionicons name="close" size={18} color={isDark ? '#FEE2E2' : '#B91C1C'} style={{ marginLeft: 8 }} />
+        </TouchableOpacity>
+      )}
 
       {/* Status Tabs */}
       <View style={[styles.statusTabs, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
@@ -496,6 +893,14 @@ const MessagingScreen: React.FC = () => {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.messagesList}
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
       />
 
       {/* Input Area */}
@@ -516,7 +921,7 @@ const MessagingScreen: React.FC = () => {
             placeholder="Type a message..."
             placeholderTextColor={colors.secondaryText}
             value={inputText}
-            onChangeText={setInputText}
+            onChangeText={handleInputChange}
             multiline
             maxLength={1000}
           />
@@ -590,6 +995,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
+  },
+  errorBanner: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
   },
   backButton: {
     marginRight: 12,

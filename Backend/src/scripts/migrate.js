@@ -224,7 +224,62 @@ const statements = [
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )`,
   `CREATE INDEX IF NOT EXISTS idx_phone_auth_sessions_phone ON phone_auth_sessions(phone_number)`,
-  `CREATE INDEX IF NOT EXISTS idx_phone_auth_sessions_token ON phone_auth_sessions(session_token)`
+  `CREATE INDEX IF NOT EXISTS idx_phone_auth_sessions_token ON phone_auth_sessions(session_token)`,
+  `DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'message_type_enum') THEN
+        CREATE TYPE message_type_enum AS ENUM ('text','image','file','system');
+      END IF;
+    END $$;`,
+  `DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'conversation_role_enum') THEN
+        CREATE TYPE conversation_role_enum AS ENUM ('consumer','vendor','admin','support');
+      END IF;
+    END $$;`,
+  `CREATE TABLE IF NOT EXISTS conversations (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      title VARCHAR(255),
+      conversation_type VARCHAR(32) DEFAULT 'consumer_vendor',
+      created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )`,
+  `CREATE TABLE IF NOT EXISTS conversation_participants (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      role conversation_role_enum DEFAULT 'consumer',
+      joined_at TIMESTAMPTZ DEFAULT NOW(),
+      last_read_message_id UUID,
+      last_read_at TIMESTAMPTZ,
+      is_muted BOOLEAN DEFAULT FALSE,
+      UNIQUE (conversation_id, user_id)
+    )`,
+  `CREATE INDEX IF NOT EXISTS idx_conversation_participants_user ON conversation_participants(user_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_conversation_participants_conversation ON conversation_participants(conversation_id)`,
+  `CREATE TABLE IF NOT EXISTS messages (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+      sender_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      message_type message_type_enum DEFAULT 'text',
+      content TEXT,
+      metadata JSONB DEFAULT '{}'::jsonb,
+      attachments JSONB DEFAULT '[]'::jsonb,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      deleted_at TIMESTAMPTZ
+    )`,
+  `CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at)`,
+  `CREATE TABLE IF NOT EXISTS message_reads (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      read_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE (message_id, user_id)
+    )`,
+  `CREATE INDEX IF NOT EXISTS idx_message_reads_user ON message_reads(user_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_message_reads_message ON message_reads(message_id)`
 ];
 
 async function runMigrations() {
