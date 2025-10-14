@@ -53,6 +53,23 @@ const ConsumerProfileSetupScreen: React.FC = () => {
   }, []);
 
   const handleInputChange = (field: string, value: string) => {
+    if (field === 'phone') {
+      const digitsOnly = value.replace(/\D/g, '');
+      if (digitsOnly.length <= 10) {
+        let formatted = digitsOnly;
+        if (digitsOnly.length > 3 && digitsOnly.length <= 6) {
+          formatted = `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3)}`;
+        } else if (digitsOnly.length > 6) {
+          formatted = `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6, 10)}`;
+        }
+        setFormData(prev => ({
+          ...prev,
+          [field]: formatted
+        }));
+      }
+      return;
+    }
+    
     setFormData(prev => ({
       ...prev,
       [field]: value
