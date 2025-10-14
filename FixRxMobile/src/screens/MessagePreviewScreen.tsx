@@ -28,7 +28,10 @@ const MessagePreviewScreen: React.FC = () => {
   const { colors, isDarkMode } = useTheme();
   const { userProfile } = useAppContext();
   
-  const { selectedContacts, inviteType } = route.params;
+  // Safely extract route params with fallbacks
+  const selectedContacts = route.params?.selectedContacts || [];
+  const inviteType = route.params?.inviteType || 'contractor';
+  
   const [personalNote, setPersonalNote] = useState('');
   const [includeProfile, setIncludeProfile] = useState(true);
   const [includeReferralCode, setIncludeReferralCode] = useState(true);
@@ -43,14 +46,17 @@ const MessagePreviewScreen: React.FC = () => {
       message = `Hey! I've been using FixRx to find reliable contractors through recommendations from friends. You should join - it's a great way to connect with local clients. Join me to grow your business and find quality customers.`;
       
       if (includeProfile && userProfile) {
-        message += ` I'm a ${userProfile.userType === 'vendor' ? '4.9-star contractor with 8 years experience in Plumbing & Emergency Repairs' : 'homeowner looking for quality contractors'}.`;
+        const userTypeText = userProfile.userType === 'vendor' 
+          ? '4.9-star contractor with 8 years experience in Plumbing & Emergency Repairs' 
+          : 'homeowner looking for quality contractors';
+        message += ` I'm a ${userTypeText}.`;
       }
     } else {
       message = `Hi! I wanted to invite you to FixRx - it's an app I use to find trusted contractors through friend recommendations. It's been really helpful for finding reliable help for home projects.`;
     }
     
-    if (personalNote) {
-      message = `${personalNote}\n\n${message}`;
+    if (personalNote && personalNote.trim()) {
+      message = `${personalNote.trim()}\n\n${message}`;
     }
     
     if (includeReferralCode) {
@@ -66,17 +72,37 @@ const MessagePreviewScreen: React.FC = () => {
   const messagesNeeded = Math.ceil(characterCount / messageLimit);
 
   const handleSendInvitations = () => {
-    console.log('Send button pressed');
-    console.log('Selected contacts:', selectedContacts.length);
-    console.log('Invite type:', inviteType);
-    
-    // Direct navigation without Alert for now
-    // TODO: Add confirmation dialog back once navigation is stable
-    console.log('Navigating to InvitationSuccess');
-    navigation.navigate('InvitationSuccess' as any, {
-      invitationCount: selectedContacts.length || 1,
-      inviteType: inviteType || 'contractor'
-    });
+    try {
+      console.log('Send button pressed');
+      console.log('Selected contacts:', selectedContacts?.length || 0);
+      console.log('Invite type:', inviteType);
+      
+      const contactCount = selectedContacts?.length || 0;
+      
+      if (contactCount === 0) {
+        Alert.alert(
+          'No Contacts Selected',
+          'Please select at least one contact to send invitations.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      // Direct navigation without Alert for now
+      // TODO: Add confirmation dialog back once navigation is stable
+      console.log('Navigating to InvitationSuccess');
+      navigation.navigate('InvitationSuccess', {
+        invitationCount: contactCount,
+        inviteType: inviteType
+      });
+    } catch (error) {
+      console.error('Error sending invitations:', error);
+      Alert.alert(
+        'Error',
+        'Failed to send invitations. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   return (
@@ -152,7 +178,7 @@ const MessagePreviewScreen: React.FC = () => {
             <Text style={[styles.countText, { color: characterCount > messageLimit ? '#EF4444' : colors.secondaryText }]}>
               {characterCount}/{messageLimit} characters
             </Text>
-            {selectedContacts.length > 0 && (
+            {selectedContacts && selectedContacts.length > 0 && (
               <Text style={[styles.invitationCountText, { color: colors.primary }]}>
                 Sending to {selectedContacts.length} {selectedContacts.length === 1 ? 'contact' : 'contacts'}
               </Text>
@@ -252,7 +278,7 @@ const MessagePreviewScreen: React.FC = () => {
         <View style={[styles.section, { backgroundColor: colors.cardBackground }]}>
           <View style={styles.recipientsHeader}>
             <Text style={[styles.sectionTitle, { color: colors.primaryText }]}>
-              Sending to: {selectedContacts.length} contact{selectedContacts.length !== 1 ? 's' : ''}
+              Sending to: {selectedContacts?.length || 0} contact{selectedContacts?.length !== 1 ? 's' : ''}
             </Text>
             <TouchableOpacity>
               <Text style={[styles.showListButton, { color: colors.primary }]}>
@@ -304,7 +330,7 @@ const MessagePreviewScreen: React.FC = () => {
       >
         <Ionicons name="send" size={20} color="#FFFFFF" />
         <Text style={styles.sendButtonText}>
-          Send {selectedContacts.length} invitation{selectedContacts.length !== 1 ? 's' : ''}
+          Send {selectedContacts?.length || 0} invitation{selectedContacts?.length !== 1 ? 's' : ''}
         </Text>
       </TouchableOpacity>
     </SafeAreaView>

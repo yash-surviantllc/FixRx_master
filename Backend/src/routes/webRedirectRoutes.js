@@ -34,9 +34,11 @@ router.get('/', (req, res) => {
     `);
   }
 
-  // Create the deep link URL for the app
-  const appDeepLink = `exp://192.168.1.5:8082/--/magic-link?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
-  const fallbackDeepLink = `fixrx://magic-link?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+  const appDeepLink = `fixrx://magic-link?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+  
+  const expoDeepLink = process.env.NODE_ENV === 'development' 
+    ? `exp://${req.get('host').split(':')[0]}:8081/--/magic-link?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`
+    : null;
 
   res.send(`
     <!DOCTYPE html>
@@ -99,15 +101,18 @@ router.get('/', (req, res) => {
         <div class="spinner"></div>
         <p>If the app doesn't open automatically, click below:</p>
         
-        <a href="${appDeepLink}" class="button" onclick="setTimeout(() => { document.getElementById('fallback').style.display = 'block'; }, 3000);">
+        <a href="${appDeepLink}" class="button" id="primaryLink">
           Open FixRx App
         </a>
         
         <div id="fallback" style="display: none; margin-top: 20px;">
-          <p>App not opening? Try this alternative:</p>
-          <a href="${fallbackDeepLink}" class="button secondary">
-            Try Alternative Link
-          </a>
+          <p>App not opening? Try these alternatives:</p>
+          ${expoDeepLink ? `<a href="${expoDeepLink}" class="button secondary">
+            Open in Expo Go (Dev)
+          </a>` : ''}
+          <p style="margin-top: 15px; color: #6b7280; font-size: 14px;">
+            Make sure the FixRx app is installed on your device.
+          </p>
         </div>
         
         <div class="instructions">
@@ -117,34 +122,66 @@ router.get('/', (req, res) => {
       </div>
 
       <script>
-        // Automatically try to open the app
-        setTimeout(() => {
-          try {
-            window.location.href = '${appDeepLink}';
-          } catch (e) {
-            console.log('Failed to open app automatically');
-          }
-        }, 1000);
+        function attemptDeepLink(url) {
+          const iframe = document.createElement('iframe');
+          iframe.style.display = 'none';
+          iframe.src = url;
+          document.body.appendChild(iframe);
+          
+          setTimeout(() => {
+            try {
+              window.location.href = url;
+            } catch (e) {
+              console.log('Direct navigation failed:', e);
+            }
+          }, 100);
+          
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+          }, 2000);
+        }
         
-        // Show fallback options after 2 seconds
+        setTimeout(() => {
+          attemptDeepLink('${appDeepLink}');
+        }, 500);
+        
         setTimeout(() => {
           document.getElementById('fallback').style.display = 'block';
-        }, 2000);
+        }, 3000);
         
-        // Add click handlers for manual attempts
         document.addEventListener('DOMContentLoaded', function() {
-          const buttons = document.querySelectorAll('a[href*="exp://"]');
-          buttons.forEach(button => {
+          const primaryLink = document.getElementById('primaryLink');
+          if (primaryLink) {
+            primaryLink.addEventListener('click', function(e) {
+              e.preventDefault();
+              attemptDeepLink(this.href);
+            });
+          }
+          
+          const deepLinkButtons = document.querySelectorAll('a[href^="fixrx://"], a[href^="exp://"]');
+          deepLinkButtons.forEach(button => {
             button.addEventListener('click', function(e) {
               e.preventDefault();
-              try {
-                window.location.href = this.href;
-              } catch (error) {
-                alert('Unable to open app. Please make sure Expo Go is installed.');
-              }
+              attemptDeepLink(this.href);
             });
           });
         });
+        
+        let appOpened = false;
+        document.addEventListener('visibilitychange', function() {
+          if (document.hidden) {
+            appOpened = true;
+          }
+        });
+        
+        setTimeout(() => {
+          if (!appOpened) {
+            const fallbackDiv = document.getElementById('fallback');
+            if (fallbackDiv && fallbackDiv.style.display === 'none') {
+              fallbackDiv.style.display = 'block';
+            }
+          }
+        }, 5000);
       </script>
     </body>
     </html>

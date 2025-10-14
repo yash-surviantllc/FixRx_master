@@ -35,6 +35,7 @@ export interface MagicLinkAuthResponse {
     expiresIn?: number;
   };
   code?: string;
+  retryAfter?: number;
 }
 
 class MagicLinkAuthService {
@@ -49,12 +50,8 @@ class MagicLinkAuthService {
     this.baseUrl = `${API_CONFIG.BASE_URL}/auth/magic-link`;
   }
 
-  /**
-   * Send magic link to email address
-   */
   async sendMagicLink(request: MagicLinkSendRequest): Promise<MagicLinkAuthResponse> {
     try {
-      console.log('🔗 Sending magic link to:', request.email);
 
       const response = await fetch(`${this.baseUrl}/send`, {
         method: 'POST',
@@ -70,7 +67,6 @@ class MagicLinkAuthService {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('❌ Magic link send failed:', data);
         return {
           success: false,
           message: data.message || 'Failed to send magic link',
@@ -78,7 +74,6 @@ class MagicLinkAuthService {
         };
       }
 
-      console.log('✅ Magic link sent successfully');
       return {
         success: true,
         message: data.message,
@@ -86,11 +81,7 @@ class MagicLinkAuthService {
       };
 
     } catch (error) {
-      console.error('❌ Magic link send error:', error);
-      
-      // Fallback for development/offline mode
       if (__DEV__) {
-        console.log('🔧 Using development fallback');
         return {
           success: true,
           message: 'Magic link sent (development mode)',
@@ -108,15 +99,11 @@ class MagicLinkAuthService {
     }
   }
 
-  /**
-   * Verify magic link token and authenticate user with exponential backoff
-   */
   async verifyMagicLink(request: MagicLinkVerifyRequest, retryCount: number = 0): Promise<MagicLinkAuthResponse> {
     const maxRetries = 3;
     const baseDelay = 1000; // 1 second
     
     try {
-      console.log('🔐 Verifying magic link token', retryCount > 0 ? `(attempt ${retryCount + 1})` : '');
 
       const response = await fetch(`${this.baseUrl}/verify`, {
         method: 'POST',
@@ -132,20 +119,14 @@ class MagicLinkAuthService {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('❌ Magic link verification failed:', data);
-        
-        // Handle rate limiting with exponential backoff
         if (data.code === 'VERIFICATION_RATE_LIMIT_EXCEEDED' && retryCount < maxRetries) {
-          const delay = baseDelay * Math.pow(2, retryCount); // Exponential backoff
+          const delay = baseDelay * Math.pow(2, retryCount);
           const retryAfter = data.retryAfter ? data.retryAfter * 1000 : delay;
-          
-          console.log(`⏳ Rate limited. Retrying in ${Math.min(delay, retryAfter)}ms...`);
           
           await new Promise(resolve => setTimeout(resolve, Math.min(delay, retryAfter)));
           return this.verifyMagicLink(request, retryCount + 1);
         }
         
-        // Handle other errors with specific codes
         return {
           success: false,
           message: this.getErrorMessage(data.code, data.message),
@@ -154,10 +135,8 @@ class MagicLinkAuthService {
         };
       }
 
-      // Store authentication data
       if (data.data?.token && data.data?.user) {
         await this.storeAuthData(data.data.token, data.data.user);
-        console.log('✅ User authenticated via magic link');
       }
 
       return {
@@ -167,18 +146,13 @@ class MagicLinkAuthService {
       };
 
     } catch (error) {
-      console.error('❌ Magic link verification error:', error);
-      
-      // Retry on network errors with exponential backoff
       if (retryCount < maxRetries && this.isNetworkError(error)) {
         const delay = baseDelay * Math.pow(2, retryCount);
-        console.log(`🔄 Network error. Retrying in ${delay}ms...`);
         
         await new Promise(resolve => setTimeout(resolve, delay));
         return this.verifyMagicLink(request, retryCount + 1);
       }
       
-      // Fallback for development/offline mode
       if (__DEV__ && request.token === 'dev-token') {
         const mockUser: MagicLinkUser = {
           id: 'dev-user-id',
@@ -192,7 +166,6 @@ class MagicLinkAuthService {
         const mockToken = 'dev-jwt-token';
         await this.storeAuthData(mockToken, mockUser);
 
-        console.log('🔧 Using development fallback authentication');
         return {
           success: true,
           message: 'Authenticated (development mode)',
@@ -212,9 +185,6 @@ class MagicLinkAuthService {
     }
   }
 
-  /**
-   * Get user-friendly error message based on error code
-   */
   private getErrorMessage(code: string, defaultMessage: string): string {
     const errorMessages: Record<string, string> = {
       'TOKEN_EXPIRED': 'This magic link has expired. Please request a new one.',
@@ -227,9 +197,6 @@ class MagicLinkAuthService {
     return errorMessages[code] || defaultMessage;
   }
 
-  /**
-   * Check if error is a network-related error that should be retried
-   */
   private isNetworkError(error: any): boolean {
     return error.name === 'TypeError' || 
            error.message?.includes('fetch') || 
@@ -237,9 +204,6 @@ class MagicLinkAuthService {
            error.code === 'NETWORK_ERROR';
   }
 
-  /**
-   * Check if user is currently authenticated
-   */
   async isAuthenticated(): Promise<boolean> {
     try {
       const token = await AsyncStorage.getItem(this.storageKeys.token);
@@ -247,39 +211,30 @@ class MagicLinkAuthService {
       
       return !!(token && user);
     } catch (error) {
-      console.error('❌ Auth check error:', error);
+      console.error('Auth check error:', error);
       return false;
     }
   }
 
-  /**
-   * Get current authenticated user
-   */
   async getCurrentUser(): Promise<MagicLinkUser | null> {
     try {
       const userJson = await AsyncStorage.getItem(this.storageKeys.user);
       return userJson ? JSON.parse(userJson) : null;
     } catch (error) {
-      console.error('❌ Get user error:', error);
+      console.error('Get user error:', error);
       return null;
     }
   }
 
-  /**
-   * Get current auth token
-   */
   async getAuthToken(): Promise<string | null> {
     try {
       return await AsyncStorage.getItem(this.storageKeys.token);
     } catch (error) {
-      console.error('❌ Get token error:', error);
+      console.error('Get token error:', error);
       return null;
     }
   }
 
-  /**
-   * Logout user (clear stored data)
-   */
   async logout(): Promise<void> {
     try {
       await AsyncStorage.multiRemove([
@@ -287,15 +242,11 @@ class MagicLinkAuthService {
         this.storageKeys.user,
         this.storageKeys.refreshToken,
       ]);
-      console.log('✅ User logged out');
     } catch (error) {
-      console.error('❌ Logout error:', error);
+      console.error('Logout error:', error);
     }
   }
 
-  /**
-   * Store authentication data securely
-   */
   private async storeAuthData(token: string, user: MagicLinkUser): Promise<void> {
     try {
       await AsyncStorage.multiSet([
@@ -303,22 +254,16 @@ class MagicLinkAuthService {
         [this.storageKeys.user, JSON.stringify(user)],
       ]);
     } catch (error) {
-      console.error('❌ Store auth data error:', error);
+      console.error('Store auth data error:', error);
       throw error;
     }
   }
 
-  /**
-   * Validate email format
-   */
   validateEmail(email: string): boolean {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   }
 
-  /**
-   * Check service health
-   */
   async checkHealth(): Promise<boolean> {
     try {
       const response = await fetch(`${this.baseUrl}/health`, {
@@ -328,15 +273,11 @@ class MagicLinkAuthService {
       const data = await response.json();
       return data.success === true;
     } catch (error) {
-      console.error('❌ Health check failed:', error);
+      console.error('Health check failed:', error);
       return false;
     }
   }
 
-  /**
-   * Integration with existing auth service
-   * This method allows seamless integration with your existing authService
-   */
   async integrateWithExistingAuth(): Promise<{
     sendMagicLink: (email: string, purpose?: string) => Promise<any>;
     verifyMagicLink: (token: string, email: string) => Promise<any>;

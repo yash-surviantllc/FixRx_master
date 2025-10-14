@@ -83,18 +83,11 @@ class MagicLinkService {
         userAgent,
         expiresAt
       });
-      // Generate magic link URL
-      const magicLinkUrl = this.BASE_URL.startsWith('exp://') 
-        ? `${this.BASE_URL}?token=${token}&email=${encodeURIComponent(email)}`
-        : this.BASE_URL.startsWith('fixrx://') 
-        ? `${this.BASE_URL}?token=${token}&email=${encodeURIComponent(email)}`
-        : `${this.BASE_URL}/auth/magic-link?token=${token}&email=${encodeURIComponent(email)}`;
       
-      // Also generate a web fallback URL for development
-      const webFallbackUrl = `http://192.168.1.5:3000/magic-link?token=${token}&email=${encodeURIComponent(email)}`;
+      const webRedirectUrl = `${this.API_BASE_URL.replace('/api/v1', '')}/magic-link?token=${token}&email=${encodeURIComponent(email)}`;
+      const directDeepLink = `fixrx://magic-link?token=${token}&email=${encodeURIComponent(email)}`;
 
-      // Send email with magic link
-      const emailResult = await this.sendMagicLinkEmail(email, magicLinkUrl, purpose, existingUser?.first_name, webFallbackUrl);
+      const emailResult = await this.sendMagicLinkEmail(email, webRedirectUrl, purpose, existingUser?.first_name, directDeepLink);
 
       if (!emailResult.success) {
         // Clean up stored magic link if email failed
@@ -132,14 +125,8 @@ class MagicLinkService {
    */
   async verifyMagicLink(token, email, userAgent = '', ipAddress = '') {
     try {
-      console.log('🔍 SERVICE: Magic link verification attempt', { 
-        token: token.substring(0, 10) + '...', 
-        email,
-        timestamp: new Date().toISOString()
-      });
       logger.info('Magic link verification attempt', { token: token.substring(0, 10) + '...', email });
       
-      // Find and validate magic link
       const magicLink = await this.findMagicLink(token);
 
       if (!magicLink) {
@@ -150,14 +137,6 @@ class MagicLinkService {
         };
       }
 
-      logger.info('Magic link found', { 
-        id: magicLink.id, 
-        email: magicLink.email, 
-        isUsed: magicLink.is_used, 
-        expiresAt: magicLink.expires_at 
-      });
-
-      // Check if already used
       if (magicLink.is_used) {
         return {
           success: false,
@@ -165,16 +144,8 @@ class MagicLinkService {
         };
       }
 
-      // Check if expired
       const now = new Date();
       const expiresAt = new Date(magicLink.expires_at);
-      console.log('🔎 SERVICE: Expiration check', {
-        now: now.toISOString(),
-        expiresAt: expiresAt.toISOString(),
-        diffMs: expiresAt.getTime() - now.getTime(),
-        isExpired: now > expiresAt,
-        rawExpiresAt: magicLink.expires_at
-      });
 
       if (now > expiresAt) {
         await this.invalidateMagicLink(token);
@@ -184,7 +155,6 @@ class MagicLinkService {
         };
       }
 
-      // Verify email matches
       if (magicLink.email.toLowerCase() !== email.toLowerCase()) {
         return {
           success: false,
@@ -196,11 +166,9 @@ class MagicLinkService {
       let isNewUser = false;
 
       if (magicLink.purpose === 'REGISTRATION' || !magicLink.user_id) {
-        // Create new user for registration or if user doesn't exist
         user = await this.createUserFromMagicLink(magicLink);
         isNewUser = true;
       } else {
-        // Get existing user
         user = await this.findUserById(magicLink.user_id);
         if (!user) {
           return {
@@ -210,20 +178,14 @@ class MagicLinkService {
         }
       }
 
-      // Update user's last login
       await this.updateUserLastLogin(user.id, ipAddress);
 
-      // Generate JWT tokens
       const accessToken = this.generateAccessToken(user);
       const refreshToken = this.generateRefreshToken(user.id);
 
-      // Store refresh token
       await this.storeRefreshToken(user.id, refreshToken);
-
-      // Mark magic link as used ONLY after successful completion
       await this.markMagicLinkAsUsed(token);
 
-      // Remove sensitive data
       const { password_hash, ...safeUser } = user;
 
       logger.info(`Magic link authentication successful`, {
@@ -551,20 +513,19 @@ class MagicLinkService {
             <div style="text-align: center; margin: 30px 0;">
               <a href="${magicLinkUrl}" 
                  style="background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block; margin-bottom: 10px;">
-                ${isLogin ? 'Open in FixRx App' : 'Complete Registration in App'}
+                ${isLogin ? 'Sign In to FixRx' : 'Complete Registration'}
               </a>
               ${webFallbackUrl ? `<br><a href="${webFallbackUrl}" 
                  style="background-color: #6b7280; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; display: inline-block; margin-top: 10px;">
-                Open in Browser (Fallback)
+                Open Direct Link
               </a>` : ''}
             </div>
             
             <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
-              ${webFallbackUrl ? 'Try the app link first, or use the browser fallback if needed.' : 'If the button doesn\'t work, copy and paste this link:'}
+              ${webFallbackUrl ? 'Click the button above to open the FixRx app and complete your authentication.' : 'If the button doesn\'t work, copy and paste this link:'}
             </p>
-            ${webFallbackUrl ? `<p style="color: #2563eb; font-size: 12px; word-break: break-all; margin-top: 5px;">
-              App: ${magicLinkUrl}<br>
-              Browser: ${webFallbackUrl}
+            ${webFallbackUrl ? `<p style="color: #94a3b8; font-size: 12px; margin-top: 10px;">
+              <strong>Note:</strong> The link will automatically open the FixRx app on your device.
             </p>` : `<p style="color: #2563eb; font-size: 14px; word-break: break-all; margin-top: 5px;">
               ${magicLinkUrl}
             </p>`}
