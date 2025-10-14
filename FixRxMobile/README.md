@@ -1,131 +1,161 @@
-# FixRx Mobile App
+# FixRx Mobile Application
 
-## 🚀 Quick Start
+## Overview
+
+FixRx Mobile is a React Native application built with Expo, connecting homeowners with trusted contractors for home service management.
+
+## Quick Start
 
 ### Prerequisites
-- Node.js (v16 or higher)
-- Expo Go app on your phone (for testing)
-- Android Studio (for Android development) or Xcode (for iOS development on Mac)
+- Node.js v16 or higher
+- npm or yarn package manager
+- Expo Go app (for device testing)
+- Android Studio (for Android) or Xcode (for iOS on Mac)
 
-### Running the App
+### Installation
 
-1. **Start the development server:**
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Start the development server:
    ```bash
    npm start
    ```
 
-2. **Run on your device:**
-   - Install **Expo Go** from App Store (iOS) or Play Store (Android)
-   - Scan the QR code shown in terminal with:
-     - iOS: Camera app
-     - Android: Expo Go app
-
-3. **Run on simulator:**
+3. Run on your platform:
    - Press `a` for Android emulator
    - Press `i` for iOS simulator (Mac only)
    - Press `w` for web browser
+   - Scan QR code with Expo Go app for physical device
 
-## 📱 Testing Your App
-
-### On Physical Device
-1. Make sure your phone and computer are on the same WiFi network
-2. Open Expo Go app
-3. Scan the QR code from terminal
-4. App will load and hot-reload on changes
-
-### On Emulator/Simulator
-- **Android:** Install Android Studio, create an AVD, then press `a` in terminal
-- **iOS (Mac only):** Install Xcode, then press `i` in terminal
-- **Web:** Press `w` to open in browser (limited functionality)
-
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 FixRxMobile/
-├── App.tsx                    # Main app entry point
 ├── src/
-│   ├── components/
-│   │   └── native/           # React Native components
-│   │       └── Form.tsx      # Form components
-│   ├── navigation/
-│   │   └── AppNavigator.tsx  # Navigation setup
-│   ├── screens/              # App screens
-│   │   └── EmailAuthScreen.native.tsx
-│   └── utils/
-│       └── styleConverter.ts # Style utilities
-├── assets/                   # Images, fonts, etc.
-└── package.json             # Dependencies
+│   ├── components/          # Reusable UI components
+│   ├── screens/             # Screen components
+│   │   ├── auth/            # Authentication screens
+│   │   ├── consumer/        # Consumer-specific screens
+│   │   └── vendor/          # Vendor-specific screens
+│   ├── services/            # API service layer
+│   ├── context/             # React context providers
+│   ├── types/               # TypeScript definitions
+│   └── utils/               # Utility functions
+├── assets/                  # Static assets
+├── App.tsx                  # Root component
+├── babel.config.js          # Babel configuration
+├── metro.config.js          # Metro bundler configuration
+└── package.json             # Dependencies and scripts
 ```
 
-## 🔧 Common Commands
+## Available Scripts
 
 ```bash
-# Start development server
+npm start          # Start development server with cache cleared
+npm run android    # Run on Android with cache cleared
+npm run ios        # Run on iOS with cache cleared
+npm run web        # Run on web with cache cleared
+npm run clean      # Clean node_modules, .expo, and package-lock.json
+npm run reset      # Clean and reinstall everything
+```
+
+## Key Features
+
+### Authentication
+- Email magic link authentication
+- Phone number OTP verification
+- Google OAuth integration
+- Facebook OAuth (planned)
+
+### User Types
+- Consumer: Find and hire contractors
+- Vendor: Manage services and clients
+
+### Validations
+- Email format validation with real-time feedback
+- US phone number validation (XXX) XXX-XXXX format
+- Required field validation on all forms
+- Button states properly managed (disabled/loading)
+
+## Development Guidelines
+
+### Code Style
+- TypeScript for type safety
+- Functional components with hooks
+- Proper error handling and loading states
+- Consistent naming conventions
+
+### Testing on Physical Device
+1. Ensure device and computer are on same WiFi network
+2. Open Expo Go app
+3. Scan QR code from terminal
+4. App will load with hot-reload enabled
+
+### Testing on Emulator
+- Android: Install Android Studio, create AVD, press `a`
+- iOS: Install Xcode (Mac only), press `i`
+- Web: Press `w` (limited functionality)
+
+## Configuration
+
+### Environment Variables
+Create a `.env` file for API configuration:
+```
+EXPO_PUBLIC_API_URL=your_api_url
+EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID=your_client_id
+EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=your_android_id
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=your_ios_id
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=your_web_id
+```
+
+### Package Versions
+- Expo SDK: 49.0.21
+- React Native: 0.72.10
+- React: 18.2.0
+- React Native Reanimated: 3.5.4
+
+## Troubleshooting
+
+### Common Issues
+
+**App won't load:**
+```bash
+npm run reset
+```
+
+**Metro bundler errors:**
+```bash
+npx expo start -c
+```
+
+**Module not found:**
+```bash
+npm install
 npm start
-
-# Clear cache and restart
-npm start -- --clear
-
-# Run on Android
-npm run android
-
-# Run on iOS (Mac only)
-npm run ios
-
-# Run on web
-npm run web
-
-# Install new dependencies
-npm install <package-name>
 ```
 
-## 📝 Development Tips
-
-1. **Hot Reload:** Save files to see changes instantly
-2. **Shake device:** Opens developer menu on device
-3. **Press `r` in terminal:** Reload the app
-4. **Press `j` in terminal:** Open debugger
-
-## 🎨 Styling
-
-We use a custom style converter that transforms Tailwind-like classes to React Native styles:
-
-```typescript
-import { tw } from './src/utils/styleConverter';
-
-// Use Tailwind-like classes
-<View style={tw('flex-1 p-4 bg-white')}>
-  <Text style={tw('text-lg font-bold text-gray-900')}>
-    Hello World
-  </Text>
-</View>
+**Cache issues:**
+```bash
+npm run clean
+npm install
 ```
 
-## 🚦 Next Steps
+## Documentation
 
-1. **Test the app** on your device using Expo Go
-2. **Migrate more screens** from the web version
-3. **Add native features** like push notifications
-4. **Build for production** using EAS Build
+- [CHANGELOG.md](./CHANGELOG.md) - Version history and changes
+- [NPM_WARNINGS_INFO.md](./NPM_WARNINGS_INFO.md) - About npm deprecation warnings
+- [BACKEND_INTEGRATION_GUIDE.md](./BACKEND_INTEGRATION_GUIDE.md) - API integration guide
 
-## 📚 Resources
+## Resources
 
 - [Expo Documentation](https://docs.expo.dev/)
-- [React Native Documentation](https://reactnative.dev/docs/getting-started)
-- [React Navigation](https://reactnavigation.org/docs/getting-started)
+- [React Native Documentation](https://reactnative.dev/)
+- [React Navigation](https://reactnavigation.org/)
+- [TypeScript Documentation](https://www.typescriptlang.org/)
 
-## 🐛 Troubleshooting
+## Support
 
-### App won't load
-- Ensure phone and computer are on same network
-- Try restarting the Metro bundler: `npm start -- --clear`
-- Check firewall settings
-
-### Module not found errors
-- Run `npm install`
-- Clear cache: `npm start -- --clear`
-
-### Styling issues
-- Remember React Native doesn't support all CSS properties
-- Use the styleConverter utility for Tailwind classes
-- Check Platform-specific code for iOS/Android differences
+For technical issues or questions, please refer to the documentation or contact the development team.

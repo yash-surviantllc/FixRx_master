@@ -43,11 +43,11 @@ const RatingScreen: React.FC = () => {
   };
 
   const getEmojiForRating = (value: number) => {
-    if (value <= 1.5) return '😞';
-    if (value <= 2.5) return '😕';
-    if (value <= 3.5) return '😐';
-    if (value <= 4.5) return '🙂';
-    return '😍';
+    if (value <= 1.5) return 'Poor';
+    if (value <= 2.5) return 'Fair';
+    if (value <= 3.5) return 'Good';
+    if (value <= 4.5) return 'Great';
+    return 'Excellent';
   };
 
   const handleAddPhoto = () => {
@@ -62,7 +62,7 @@ const RatingScreen: React.FC = () => {
     
     // Show immediate feedback
     Alert.alert(
-      'Review Submitted! 🎉',
+      'Review Submitted!',
       'Thank you for your feedback!',
       [
         {
@@ -244,8 +244,8 @@ const RatingScreen: React.FC = () => {
           {[...Array(30)].map((_, i) => {
             const randomLeft = Math.random() * 100;
             const randomSize = 20 + Math.random() * 20;
-            const confettiEmojis = ['🎉', '🎊', '⭐', '✨', '🌟', '💫'];
-            const randomEmoji = confettiEmojis[Math.floor(Math.random() * confettiEmojis.length)];
+            const confettiSymbols = ['*', '+', 'x', '•', '◆', '◇'];
+            const randomSymbol = confettiSymbols[Math.floor(Math.random() * confettiSymbols.length)];
             
             return (
               <Text
@@ -258,7 +258,7 @@ const RatingScreen: React.FC = () => {
                   },
                 ]}
               >
-                {randomEmoji}
+                {randomSymbol}
               </Text>
             );
           })}

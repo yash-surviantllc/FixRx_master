@@ -12,7 +12,7 @@ type PhoneAuthScreenNavigationProp = NativeStackNavigationProp<RootStackParamLis
 
 const PhoneAuthScreen = () => {
   const [countryCode, setCountryCode] = useState('+1');
-  const [countryFlag, setCountryFlag] = useState('🇺🇸');
+  const [countryFlag, setCountryFlag] = useState('US');
   const [countryName, setCountryName] = useState('United States');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
@@ -28,15 +28,39 @@ const PhoneAuthScreen = () => {
     setCountryName(country);
   };
 
+  const handlePhoneNumberChange = (text: string) => {
+    const digitsOnly = text.replace(/[^0-9]/g, '');
+    
+    if (countryCode === '+1') {
+      if (digitsOnly.length <= 10) {
+        let formatted = digitsOnly;
+        if (digitsOnly.length > 3 && digitsOnly.length <= 6) {
+          formatted = `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3)}`;
+        } else if (digitsOnly.length > 6) {
+          formatted = `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6, 10)}`;
+        } else if (digitsOnly.length > 0) {
+          formatted = digitsOnly.length <= 3 ? digitsOnly : `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3)}`;
+        }
+        setPhoneNumber(formatted);
+      }
+    } else {
+      setPhoneNumber(digitsOnly);
+    }
+  };
+
   const formattedPhoneNumber = useMemo(() => {
     const digitsOnly = phoneNumber.replace(/[^0-9]/g, '');
     return `${countryCode}${digitsOnly}`;
   }, [countryCode, phoneNumber]);
 
   const isPhoneValid = useMemo(() => {
+    const digitsOnly = phoneNumber.replace(/[^0-9]/g, '');
+    if (countryCode === '+1') {
+      return digitsOnly.length === 10;
+    }
     const e164Regex = /^\+[1-9]\d{6,14}$/;
     return e164Regex.test(formattedPhoneNumber);
-  }, [formattedPhoneNumber]);
+  }, [countryCode, phoneNumber, formattedPhoneNumber]);
 
   const handleSendCode = async () => {
     if (!phoneNumber || !isPhoneValid) {
@@ -141,19 +165,22 @@ const PhoneAuthScreen = () => {
             {/* Phone Number Input */}
             <TextInput
               style={styles.phoneInput}
-              placeholder="555 123 4567"
+              placeholder="(555) 123-4567"
               value={phoneNumber}
-              onChangeText={setPhoneNumber}
+              onChangeText={handlePhoneNumberChange}
               keyboardType="phone-pad"
               autoComplete="tel"
             />
           </View>
 
           <TouchableOpacity
-            style={styles.button}
+            style={[
+              styles.button,
+              (!isPhoneValid || isSendingCode) && styles.buttonDisabled
+            ]}
             onPress={handleSendCode}
-            disabled={isSendingCode}
-            activeOpacity={isSendingCode ? 1 : 0.7}
+            disabled={!isPhoneValid || isSendingCode}
+            activeOpacity={(!isPhoneValid || isSendingCode) ? 1 : 0.7}
           >
             <Text style={styles.buttonText}>Send Verification Code</Text>
           </TouchableOpacity>
@@ -252,6 +279,10 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
+  },
+  buttonDisabled: {
+    backgroundColor: '#9CA3AF',
+    opacity: 0.6,
   },
   buttonText: {
     color: '#fff',

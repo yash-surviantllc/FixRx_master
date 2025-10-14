@@ -20,32 +20,32 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 const SERVICE_CATEGORIES = {
   popular: [
-    { id: 'plumbing', name: 'Plumbing', icon: '🔧', demand: 'High demand', color: '#3B82F6' },
-    { id: 'electrical', name: 'Electrical', icon: '⚡', demand: 'High demand', color: '#F59E0B' },
-    { id: 'hvac', name: 'HVAC', icon: '❄️', demand: 'Peak season: Nov-Mar', color: '#10B981' },
-    { id: 'carpentry', name: 'Carpentry', icon: '🔨', demand: '⭐⭐⭐', color: '#8B5CF6' },
+    { id: 'plumbing', name: 'Plumbing', icon: 'P', demand: 'High demand', color: '#3B82F6' },
+    { id: 'electrical', name: 'Electrical', icon: 'E', demand: 'High demand', color: '#F59E0B' },
+    { id: 'hvac', name: 'HVAC', icon: 'H', demand: 'Peak season: Nov-Mar', color: '#10B981' },
+    { id: 'carpentry', name: 'Carpentry', icon: 'C', demand: 'Popular', color: '#8B5CF6' },
   ],
   homeMaintenance: [
-    { id: 'plumbing', name: 'Plumbing', icon: '🔧' },
-    { id: 'handyman', name: 'Handyman Services', icon: '🔨' },
-    { id: 'landscaping', name: 'Landscaping', icon: '🌿' },
-    { id: 'houseCleaning', name: 'House Cleaning', icon: '🔵' },
+    { id: 'plumbing', name: 'Plumbing', icon: 'P' },
+    { id: 'handyman', name: 'Handyman Services', icon: 'H' },
+    { id: 'landscaping', name: 'Landscaping', icon: 'L' },
+    { id: 'houseCleaning', name: 'House Cleaning', icon: 'C' },
   ],
   repairs: [
-    { id: 'roofing', name: 'Roofing', icon: '💎' },
-    { id: 'appliance', name: 'Appliance Repair', icon: '🟠' },
+    { id: 'roofing', name: 'Roofing', icon: 'R' },
+    { id: 'appliance', name: 'Appliance Repair', icon: 'A' },
   ],
   installation: [
-    { id: 'electrical', name: 'Electrical', icon: '⚡' },
-    { id: 'hvac', name: 'HVAC', icon: '❄️' },
-    { id: 'flooring', name: 'Flooring', icon: '▬' },
+    { id: 'electrical', name: 'Electrical', icon: 'E' },
+    { id: 'hvac', name: 'HVAC', icon: 'H' },
+    { id: 'flooring', name: 'Flooring', icon: 'F' },
   ],
   remodeling: [
-    { id: 'carpentry', name: 'Carpentry', icon: '🔨' },
-    { id: 'painting', name: 'Painting', icon: '🔴' },
+    { id: 'carpentry', name: 'Carpentry', icon: 'C' },
+    { id: 'painting', name: 'Painting', icon: 'P' },
   ],
   emergency: [
-    { id: 'locksmith', name: 'Locksmith', icon: '🔒' },
+    { id: 'locksmith', name: 'Locksmith', icon: 'L' },
   ],
 };
 
