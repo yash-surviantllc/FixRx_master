@@ -36,7 +36,7 @@ class FixRxApplication {
 
   async initialize() {
     try {
-      console.log('🚀 Initializing FixRx Application...');
+      console.log('Initializing FixRx Application...');
 
       // Initialize core services
       await this.initializeServices();
@@ -51,7 +51,7 @@ class FixRxApplication {
       this.setupErrorHandling();
 
       this.isInitialized = true;
-      console.log('✅ FixRx Application Initialized Successfully');
+      console.log('FixRx Application Initialized Successfully');
 
       return {
         initialized: true,
@@ -66,13 +66,13 @@ class FixRxApplication {
       };
 
     } catch (error) {
-      console.error('❌ FixRx Application Initialization Failed:', error);
+      console.error('FixRx Application Initialization Failed:', error);
       throw error;
     }
   }
 
   async initializeServices() {
-    console.log('📦 Initializing Services...');
+    console.log('Initializing Services...');
 
     // Initialize Database Manager (PostgreSQL + Redis)
     await dbManager.initialize();
@@ -89,11 +89,11 @@ class FixRxApplication {
     // Initialize Monitoring Service
     await monitoringService.initialize();
 
-    console.log('✅ All Services Initialized');
+    console.log('All Services Initialized');
   }
 
   setupMiddleware() {
-    console.log('🔧 Setting up Middleware Stack...');
+    console.log('Setting up Middleware Stack...');
 
     // Health check (before other middleware)
     this.app.use(healthCheck);
@@ -121,11 +121,11 @@ class FixRxApplication {
     this.app.use('/api/v1', rateLimiters.api);
     this.app.use('/', rateLimiters.general);
 
-    console.log('✅ Middleware Stack Configured');
+    console.log('Middleware Stack Configured');
   }
 
   setupRoutes() {
-    console.log('🛣️ Setting up Routes...');
+    console.log('Setting up Routes...');
 
     // API Routes
     this.setupAuthRoutes();
@@ -141,7 +141,7 @@ class FixRxApplication {
     this.setupSystemRoutes();
     this.setupMobileAppRoutes();
 
-    console.log('✅ Routes Configured');
+    console.log('Routes Configured');
   }
 
   setupAuthRoutes() {
@@ -615,17 +615,17 @@ class FixRxApplication {
 
       this.server = this.app.listen(port, () => {
         console.log(`
-🚀 FixRx Application Server Started
+FixRx Application Server Started
 ===========================================
-🎯 Architecture: ${process.env.NODE_ENV || 'development'}
-📡 Port: ${port}
-🗄️ Database: ${dbManager.getStatus().connected ? 'Connected' : 'Disconnected'}
-🔄 Queue: ${queueManager.isInitialized ? 'Active' : 'Inactive'}
-🔐 Auth0: ${auth0Service.getStatus().initialized ? 'Connected' : 'Disconnected'}
-🗺️ GeoSearch: ${geoSearchService.getStatus().initialized ? 'Active' : 'Inactive'}
-📊 Monitoring: ${monitoringService.getStatus().initialized ? 'Active' : 'Inactive'}
+Architecture: ${process.env.NODE_ENV || 'development'}
+Port: ${port}
+Database: ${dbManager.getStatus().connected ? 'Connected' : 'Disconnected'}
+Queue: ${queueManager.isInitialized ? 'Active' : 'Inactive'}
+Auth0: ${auth0Service.getStatus().initialized ? 'Connected' : 'Disconnected'}
+GeoSearch: ${geoSearchService.getStatus().initialized ? 'Active' : 'Inactive'}
+Monitoring: ${monitoringService.getStatus().initialized ? 'Active' : 'Inactive'}
 ===========================================
-🎯 Ready for Production Traffic!
+Ready for Production Traffic!
         `);
       });
 
@@ -633,7 +633,7 @@ class FixRxApplication {
       return this.server;
 
     } catch (error) {
-      console.error('❌ Server Start Failed:', error);
+      console.error('Server Start Failed:', error);
       throw error;
     }
   }
@@ -649,10 +649,10 @@ class FixRxApplication {
       await dbManager.close();
       socketManager.close();
 
-      console.log('✅ FixRx Application Server Stopped');
+      console.log('FixRx Application Server Stopped');
 
     } catch (error) {
-      console.error('❌ Server Stop Failed:', error);
+      console.error('Server Stop Failed:', error);
     }
   }
 

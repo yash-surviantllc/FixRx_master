@@ -4,11 +4,13 @@ import { ApiResponse } from './apiClient';
 export interface OtpSendRequest {
   phone: string;
   purpose?: 'LOGIN' | 'REGISTRATION';
+  userType?: 'CONSUMER' | 'VENDOR';
 }
 
 export interface OtpVerifyRequest {
   phone: string;
   code: string;
+  userType?: 'CONSUMER' | 'VENDOR';
 }
 
 export interface OtpResponseData {
@@ -49,7 +51,8 @@ class OtpAuthService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone: request.phone,
-          purpose: request.purpose || 'LOGIN'
+          purpose: request.purpose || 'LOGIN',
+          userType: request.userType || 'CONSUMER'
         })
       });
 
@@ -87,7 +90,8 @@ class OtpAuthService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone: request.phone,
-          code: request.code
+          code: request.code,
+          userType: request.userType || 'CONSUMER'
         })
       });
 

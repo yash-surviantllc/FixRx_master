@@ -11,14 +11,14 @@ process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
 
 async function gracefulShutdown(signal) {
-  console.log(`\n📡 Received ${signal}. Starting graceful shutdown...`);
+  console.log(`\nReceived ${signal}. Starting graceful shutdown...`);
   
   try {
     await fixRxApp.stop();
-    console.log('✅ Graceful shutdown completed');
+    console.log('Graceful shutdown completed');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error during shutdown:', error);
+    console.error('Error during shutdown:', error);
     process.exit(1);
   }
 }
@@ -29,7 +29,7 @@ async function startServer() {
     const port = process.env.PORT || 3000;
     await fixRxApp.start(port);
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    console.error('Failed to start server:', error);
     process.exit(1);
   }
 }

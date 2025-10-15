@@ -18,6 +18,7 @@
     },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.fixrx.mobile",
       "associatedDomains": [
         "applinks:fixrx.com",
         "applinks:*.fixrx.com"
@@ -28,6 +29,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "package": "com.fixrx.mobile",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "intentFilters": [
@@ -42,6 +44,11 @@
             {
               "scheme": "https",
               "host": "*.fixrx.com",
+              "pathPrefix": "/auth/magic-link"
+            },
+            {
+              "scheme": "http",
+              "host": "localhost",
               "pathPrefix": "/auth/magic-link"
             }
           ],

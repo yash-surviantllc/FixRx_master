@@ -86,12 +86,6 @@ class MagicLinkController {
    * POST /api/v1/auth/magic-link/verify
    */
   async verifyMagicLink(req, res) {
-    console.log('🔍 CONTROLLER: verifyMagicLink called', {
-      body: req.body,
-      ip: req.ip,
-      userAgent: req.get('User-Agent')?.substring(0, 50)
-    });
-    
     try {
       // Validate request body
       const schema = Joi.object({
@@ -173,14 +167,6 @@ class MagicLinkController {
       });
 
     } catch (error) {
-      console.error('🚨 CONTROLLER ERROR in verifyMagicLink:', {
-        error: error.message,
-        stack: error.stack?.split('\n').slice(0, 5).join('\n'),
-        requestBody: req.body,
-        errorCode: error.code,
-        errorName: error.name
-      });
-      
       logger.error('Error in verifyMagicLink controller:', error);
       res.status(500).json({
         success: false,

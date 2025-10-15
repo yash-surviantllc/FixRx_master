@@ -14,7 +14,7 @@ const RESEND_INTERVAL_SECONDS = 30;
 
 const EmailConfirmationScreen: React.FC = () => {
   const route = useRoute<EmailConfirmationScreenRouteProp>();
-  const { email } = route.params;
+  const email = route.params?.email || '';
   const {
     setUserEmail,
     setUserProfile,
@@ -23,6 +23,11 @@ const EmailConfirmationScreen: React.FC = () => {
     userType,
     isAuthenticated,
   } = useAppContext();
+  
+  // Safety check - if no email, this screen shouldn't be shown
+  if (!email) {
+    console.error('EmailConfirmationScreen: No email provided');
+  }
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;

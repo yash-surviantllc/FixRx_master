@@ -8,6 +8,20 @@ const path = require('path');
 const { Client } = require('pg');
 require('dotenv').config();
 
+function isIdempotentError(error) {
+  if (!error || !error.message) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return (
+    message.includes('already exists') ||
+    message.includes('duplicate key value violates unique constraint') ||
+    message.includes('relation') && message.includes('already exists') ||
+    message.includes('trigger') && message.includes('already exists')
+  );
+}
+
 async function runMigration() {
   const client = new Client({
     connectionString: process.env.DATABASE_URL,
@@ -29,9 +43,16 @@ async function runMigration() {
       console.log(`\n🔄 Running migration ${file}...`);
 
       const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
-      await client.query(migrationSQL);
-
-      console.log(`✅ Migration ${file} executed successfully!`);
+      try {
+        await client.query(migrationSQL);
+        console.log(`✅ Migration ${file} executed successfully!`);
+      } catch (error) {
+        if (isIdempotentError(error)) {
+          console.log(`⚠️  Migration ${file} skipped (objects already exist).`);
+          continue;
+        }
+        throw error;
+      }
     }
 
     const tableCheck = await client.query(`

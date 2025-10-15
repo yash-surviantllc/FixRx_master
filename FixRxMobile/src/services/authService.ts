@@ -45,11 +45,13 @@ export interface RegisterData {
 export interface OtpSendParams {
   phone: string;
   purpose?: 'LOGIN' | 'REGISTRATION';
+  userType?: 'CONSUMER' | 'VENDOR';
 }
 
 export interface OtpVerifyParams {
   phone: string;
   code: string;
+  userType?: 'CONSUMER' | 'VENDOR';
 }
 
 class AuthService {
@@ -273,9 +275,9 @@ class AuthService {
   /**
    * Phone OTP Authentication
    */
-  async sendOtp({ phone, purpose = 'LOGIN' }: OtpSendParams): Promise<ApiResponse<OtpResponseData>> {
+  async sendOtp({ phone, purpose = 'LOGIN', userType = 'CONSUMER' }: OtpSendParams): Promise<ApiResponse<OtpResponseData>> {
     try {
-      const result = await otpAuthService.sendCode({ phone, purpose });
+      const result = await otpAuthService.sendCode({ phone, purpose, userType });
       return {
         success: result.success,
         message:
@@ -296,9 +298,9 @@ class AuthService {
     }
   }
 
-  async verifyOtp({ phone, code }: OtpVerifyParams): Promise<ApiResponse<{ user: AuthUser; token: string; isNewUser: boolean }>> {
+  async verifyOtp({ phone, code, userType = 'CONSUMER' }: OtpVerifyParams): Promise<ApiResponse<{ user: AuthUser; token: string; isNewUser: boolean }>> {
     try {
-      const result = await otpAuthService.verifyCode({ phone, code });
+      const result = await otpAuthService.verifyCode({ phone, code, userType });
 
       if (result.success && result.data?.user && result.data?.token) {
         const normalizedUser = this.mapBackendUser(result.data.user);

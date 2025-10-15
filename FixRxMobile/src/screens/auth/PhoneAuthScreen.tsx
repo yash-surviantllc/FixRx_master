@@ -19,6 +19,7 @@ const PhoneAuthScreen = () => {
   const [confirm, setConfirm] = useState<boolean>(false);
   const [isSendingCode, setIsSendingCode] = useState(false);
   const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+  const [userType, setUserType] = useState<'CONSUMER' | 'VENDOR'>('CONSUMER');
   const { authenticateUser } = useAppContext();
   const navigation = useNavigation<PhoneAuthScreenNavigationProp>();
 
@@ -75,7 +76,10 @@ const PhoneAuthScreen = () => {
     try {
       setIsSendingCode(true);
 
-      const response = await authService.sendOtp({ phone: formattedPhoneNumber });
+      const response = await authService.sendOtp({ 
+        phone: formattedPhoneNumber, 
+        userType: userType 
+      });
 
       if (!response.success) {
         const retryAfter = response.data?.retryAfterSeconds;
@@ -114,6 +118,7 @@ const PhoneAuthScreen = () => {
       const response = await authService.verifyOtp({
         phone: formattedPhoneNumber,
         code: verificationCode.trim(),
+        userType: userType
       });
 
       if (!response.success || !response.data?.user) {
@@ -153,6 +158,44 @@ const PhoneAuthScreen = () => {
       {!confirm ? (
         <>
           <Text style={styles.subtitle}>Enter your phone number to receive a verification code</Text>
+          
+          {/* User Type Selection */}
+          <View style={styles.userTypeContainer}>
+            <Text style={styles.userTypeLabel}>I am a:</Text>
+            <View style={styles.userTypeButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.userTypeButton,
+                  userType === 'CONSUMER' && styles.userTypeButtonActive
+                ]}
+                onPress={() => setUserType('CONSUMER')}
+              >
+                <Text style={[
+                  styles.userTypeButtonText,
+                  userType === 'CONSUMER' && styles.userTypeButtonTextActive
+                ]}>
+                  Consumer
+                </Text>
+                <Text style={styles.userTypeDescription}>Looking for services</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.userTypeButton,
+                  userType === 'VENDOR' && styles.userTypeButtonActive
+                ]}
+                onPress={() => setUserType('VENDOR')}
+              >
+                <Text style={[
+                  styles.userTypeButtonText,
+                  userType === 'VENDOR' && styles.userTypeButtonTextActive
+                ]}>
+                  Vendor
+                </Text>
+                <Text style={styles.userTypeDescription}>Providing services</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
           
           <View style={styles.phoneInputContainer}>
             {/* Country Code Dropdown */}
@@ -298,6 +341,46 @@ const styles = StyleSheet.create({
     color: '#2563EB',
     fontSize: 16,
     fontWeight: '500',
+  },
+  userTypeContainer: {
+    marginBottom: 24,
+  },
+  userTypeLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  userTypeButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  userTypeButton: {
+    flex: 1,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+  },
+  userTypeButtonActive: {
+    borderColor: '#2563EB',
+    backgroundColor: '#EFF6FF',
+  },
+  userTypeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  userTypeButtonTextActive: {
+    color: '#2563EB',
+  },
+  userTypeDescription: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textAlign: 'center',
   },
 });
 

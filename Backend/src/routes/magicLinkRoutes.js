@@ -33,7 +33,7 @@ const magicLinkRateLimit = rateLimit({
   },
   // Add custom headers for better debugging
   onLimitReached: (req, res) => {
-    console.log(`🚫 Rate limit exceeded for magic link send: ${req.ip} - ${req.body?.email}`);
+    console.log(`Rate limit exceeded for magic link send: ${req.ip} - ${req.body?.email}`);
   }
 });
 
@@ -57,7 +57,7 @@ const verificationRateLimit = rateLimit({
     return `verify-${req.ip}-${email}`;
   },
   onLimitReached: (req, res) => {
-    console.log(`🚫 Verification rate limit exceeded: ${req.ip} - ${req.body?.email}`);
+    console.log(`Verification rate limit exceeded: ${req.ip} - ${req.body?.email}`);
   }
 });
 
@@ -76,7 +76,7 @@ router.post('/send', magicLinkRateLimit, magicLinkController.sendMagicLink);
  * @body    { token: string, email: string }
  */
 router.post('/verify', (req, res, next) => {
-  console.log('🔍 ROUTE: Verification request received', {
+  console.log('ROUTE: Verification request received', {
     body: req.body,
     timestamp: new Date().toISOString()
   });

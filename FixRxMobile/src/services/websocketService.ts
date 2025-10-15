@@ -21,6 +21,9 @@ class WebSocketService {
   private authToken: string | null = null;
   private reconnecting = false;
   private connected = false;
+  private connectionFailures = 0;
+  private maxFailures = 3;
+  private disabled = false;
 
   private config = {
     url: process.env.EXPO_PUBLIC_WS_URL || 'http://localhost:3000',
@@ -29,7 +32,13 @@ class WebSocketService {
   };
 
   connect = async (token?: string) => {
-    if (this.connected || this.reconnecting) {
+    if (this.connected || this.reconnecting || this.disabled) {
+      return;
+    }
+
+    if (this.connectionFailures >= this.maxFailures) {
+      console.warn('🚫 WebSocket disabled after too many connection failures. App will work in offline mode.');
+      this.disabled = true;
       return;
     }
 
@@ -37,19 +46,29 @@ class WebSocketService {
     this.authToken = token || this.authToken || (await authService.getStoredToken());
 
     if (!this.authToken) {
-      console.warn('WebSocket connection skipped: no auth token available');
+      console.warn('⚠️ WebSocket connection skipped: no auth token available');
       this.reconnecting = false;
       return;
     }
 
-    this.socket = io(this.config.url, {
-      transports: ['websocket'],
-      auth: { token: this.authToken },
-      reconnectionAttempts: this.config.reconnectionAttempts,
-      reconnectionDelay: this.config.reconnectionDelay,
-    });
+    console.log(`🔌 Attempting WebSocket connection to: ${this.config.url} (attempt ${this.connectionFailures + 1}/${this.maxFailures})`);
 
-    this.registerListeners();
+    try {
+      this.socket = io(this.config.url, {
+        transports: ['websocket', 'polling'], // Allow fallback to polling
+        auth: { token: this.authToken },
+        reconnectionAttempts: this.config.reconnectionAttempts,
+        reconnectionDelay: this.config.reconnectionDelay,
+        timeout: 10000, // 10 second timeout
+        forceNew: true, // Force new connection
+      });
+
+      this.registerListeners();
+    } catch (error) {
+      console.error('🔴 Failed to create WebSocket connection:', error);
+      this.connectionFailures++;
+      this.reconnecting = false;
+    }
   };
 
   disconnect = () => {
@@ -65,8 +84,10 @@ class WebSocketService {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
+      console.log('✅ WebSocket connected successfully');
       this.connected = true;
       this.reconnecting = false;
+      this.connectionFailures = 0; // Reset failure count on successful connection
       this.emit('connected', null);
     });
 
@@ -75,8 +96,17 @@ class WebSocketService {
       this.emit('disconnected', { reason });
     });
 
-    this.socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error.message);
+    this.socket.on('connect_error', (error: any) => {
+      console.error('🔴 WebSocket connection error:', {
+        message: error.message,
+        description: error.description || 'No description',
+        context: error.context || 'No context',
+        type: error.type || 'Unknown type',
+        url: this.config.url,
+        failures: this.connectionFailures + 1
+      });
+      this.connectionFailures++;
+      this.reconnecting = false;
       this.emit('error', error);
     });
 

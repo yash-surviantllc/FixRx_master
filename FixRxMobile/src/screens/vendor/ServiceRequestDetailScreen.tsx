@@ -9,18 +9,24 @@ const ServiceRequestDetailScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { theme, colors } = useTheme();
-  const { serviceRequests } = useAppContext();
   const darkMode = theme === 'dark';
-  const { request: passedRequest } = route.params as any;
+  const passedRequest = (route.params as any)?.request;
   const [showFullDescription, setShowFullDescription] = useState(false);
   
-  // Try to get request from context first, fallback to passed request
-  const request = passedRequest?.id ? serviceRequests.find(sr => sr.id === passedRequest.id) || passedRequest : passedRequest;
+  // Use the passed request data
+  const request = passedRequest;
   
   // Safety check - if no request, go back
+  React.useEffect(() => {
+    if (!request) {
+      console.error('ServiceRequestDetailScreen: No request data provided');
+      Alert.alert('Error', 'Request not found', [
+        { text: 'OK', onPress: () => navigation.goBack() }
+      ]);
+    }
+  }, [request, navigation]);
+  
   if (!request) {
-    Alert.alert('Error', 'Request not found');
-    navigation.goBack();
     return null;
   }
   
