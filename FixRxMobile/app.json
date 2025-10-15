@@ -8,13 +8,20 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "scheme": "fixrx",
+    "experiments": {
+      "typedRoutes": false
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "associatedDomains": [
+        "applinks:fixrx.com",
+        "applinks:*.fixrx.com"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -22,7 +29,28 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "fixrx",
+              "host": "*"
+            },
+            {
+              "scheme": "https",
+              "host": "*.fixrx.com",
+              "pathPrefix": "/auth/magic-link"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

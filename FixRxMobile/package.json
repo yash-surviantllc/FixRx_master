@@ -8,7 +8,8 @@
     "ios": "set NODE_OPTIONS=--openssl-legacy-provider && expo start --ios -c",
     "web": "set NODE_OPTIONS=--openssl-legacy-provider && expo start --web -c",
     "clean": "rmdir /s /q node_modules && rmdir /s /q .expo && del /f /q package-lock.json",
-    "reset": "npm run clean && npm install && expo start -c"
+    "reset": "npm run clean && npm install && expo start -c",
+    "setup": "node setup-env.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~3.1.1",

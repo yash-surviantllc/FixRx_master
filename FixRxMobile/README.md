@@ -19,16 +19,24 @@ FixRx Mobile is a React Native application built with Expo, connecting homeowner
    npm install
    ```
 
-2. Start the development server:
+2. Setup environment configuration:
+   ```bash
+   npm run setup
+   ```
+   This will create a `.env` file with your local IP address configured.
+
+3. Start the development server:
    ```bash
    npm start
    ```
 
-3. Run on your platform:
+4. Run on your platform:
    - Press `a` for Android emulator
    - Press `i` for iOS simulator (Mac only)
    - Press `w` for web browser
    - Scan QR code with Expo Go app for physical device
+
+**Note**: For magic link authentication, ensure backend `.env` has `FRONTEND_URL=fixrx://`. See [DEEP_LINKING_SETUP.md](./DEEP_LINKING_SETUP.md) for details.
 
 ## Project Structure
 
@@ -58,6 +66,7 @@ npm start          # Start development server with cache cleared
 npm run android    # Run on Android with cache cleared
 npm run ios        # Run on iOS with cache cleared
 npm run web        # Run on web with cache cleared
+npm run setup      # Setup .env file with local IP configuration
 npm run clean      # Clean node_modules, .expo, and package-lock.json
 npm run reset      # Clean and reinstall everything
 ```
@@ -143,11 +152,22 @@ npm run clean
 npm install
 ```
 
+**Deep linking not working:**
+- Check backend `.env` has `FRONTEND_URL=fixrx://`
+- Run `npm run setup` and restart both servers
+- See [DEEP_LINKING_SETUP.md](./DEEP_LINKING_SETUP.md)
+
+**Metro bundler startup errors:**
+```bash
+npm run reset
+```
+
 ## Documentation
 
 - [CHANGELOG.md](./CHANGELOG.md) - Version history and changes
 - [NPM_WARNINGS_INFO.md](./NPM_WARNINGS_INFO.md) - About npm deprecation warnings
 - [BACKEND_INTEGRATION_GUIDE.md](./BACKEND_INTEGRATION_GUIDE.md) - API integration guide
+- [DEEP_LINKING_SETUP.md](./DEEP_LINKING_SETUP.md) - Deep linking configuration and troubleshooting
 
 ## Resources
 
