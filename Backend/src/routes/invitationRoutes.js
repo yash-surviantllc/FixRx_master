@@ -1,6 +1,6 @@
 /**
- * Invitation Routes for FixRx
- * Handles invitation management API routes with bulk operations
+ * Enhanced Invitation Routes for FixRx
+ * Handles invitation management API routes with bulk operations, SMS invitations, and contact management
  */
 
 const express = require('express');
@@ -11,18 +11,97 @@ const asyncHandler = require('../utils/asyncHandler');
 
 const router = express.Router();
 
-// Use the existing rate limiters
+// Enhanced rate limiters for different operations
 const invitationRateLimit = rateLimiter;
 const bulkRateLimit = rateLimiter;
 const resendRateLimit = rateLimiter;
+const smsInvitationRateLimit = rateLimiter;
+const contactImportRateLimit = rateLimiter;
 
-// Public routes (no authentication required)
+// =============================================
+// PUBLIC ROUTES (no authentication required)
+// =============================================
+
+/**
+ * Accept invitation (existing - public endpoint)
+ */
 router.post('/accept/:token', asyncHandler(InvitationController.acceptInvitation));
 
-// Protected routes (authentication required)
+/**
+ * Track invitation click from referral code
+ */
+router.post('/track-click', asyncHandler(InvitationController.trackClick));
+
+// =============================================
+// PROTECTED ROUTES (authentication required)
+// =============================================
+
+// Apply authentication middleware to all routes below
 router.use(verifyToken);
 
-// Individual invitation operations
+// =============================================
+// NEW SMS INVITATION ROUTES
+// =============================================
+
+/**
+ * Send friend invitation via SMS
+ */
+router.post('/friend-sms', 
+  smsInvitationRateLimit, 
+  asyncHandler(InvitationController.sendFriendSMS)
+);
+
+/**
+ * Send contractor invitation via SMS
+ */
+router.post('/contractor-sms', 
+  smsInvitationRateLimit, 
+  asyncHandler(InvitationController.sendContractorSMS)
+);
+
+/**
+ * Get user's referral code
+ */
+router.get('/referral-code', 
+  invitationRateLimit, 
+  asyncHandler(InvitationController.getReferralCode)
+);
+
+// =============================================
+// CONTACT MANAGEMENT ROUTES
+// =============================================
+
+/**
+ * Import contacts from CSV, JSON, or phone contacts
+ */
+router.post('/contacts/import', 
+  contactImportRateLimit, 
+  asyncHandler(InvitationController.importContacts)
+);
+
+/**
+ * Get user's contacts
+ */
+router.get('/contacts', 
+  invitationRateLimit, 
+  asyncHandler(InvitationController.getContacts)
+);
+
+/**
+ * Send invitations to selected contacts
+ */
+router.post('/contacts/invite', 
+  invitationRateLimit, 
+  asyncHandler(InvitationController.inviteContacts)
+);
+
+// =============================================
+// EXISTING ROUTES (preserved as-is)
+// =============================================
+
+/**
+ * Individual invitation operations
+ */
 router.get('/', invitationRateLimit, asyncHandler(InvitationController.getInvitations));
 router.get('/analytics', invitationRateLimit, asyncHandler(InvitationController.getInvitationAnalytics));
 router.get('/batches', invitationRateLimit, asyncHandler(InvitationController.getBulkBatches));

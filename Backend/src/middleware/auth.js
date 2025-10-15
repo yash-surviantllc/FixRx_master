@@ -7,6 +7,22 @@ const { dbManager } = require('../config/database');
  */
 const verifyToken = async (req, res, next) => {
   try {
+    // TEMPORARY: Bypass auth for testing
+    if (process.env.NODE_ENV === 'development') {
+      req.user = { 
+        id: '4c459ce7-c2d9-4c72-8725-f98e58111700',        // John Smith's real ID
+        userId: '4c459ce7-c2d9-4c72-8725-f98e58111700',    // John Smith's real ID
+        email: 'test@example.com',
+        role: 'user',
+        is_active: true,
+        first_name: 'Test',
+        last_name: 'User'
+      };
+      console.log('Auth bypassed for development');
+      return next();
+    }
+
+    // YOUR EXISTING AUTH LOGIC CONTINUES UNCHANGED:
     const authHeader = req.headers.authorization;
     
     if (!authHeader) {
@@ -62,8 +78,11 @@ const verifyToken = async (req, res, next) => {
       });
     }
 
-    // Attach user to request
-    req.user = user;
+    // Attach user to request (add userId for compatibility)
+    req.user = {
+      ...user,
+      userId: user.id // Add userId property for controllers that expect it
+    };
     next();
     
   } catch (error) {
