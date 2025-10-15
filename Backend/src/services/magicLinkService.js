@@ -15,7 +15,11 @@ class MagicLinkService {
   constructor() {
     this.JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
     this.MAGIC_LINK_EXPIRY = 15 * 60 * 1000; // 15 minutes
-    this.BASE_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
+    // Use custom scheme for mobile app deep linking
+    // In development: fixrx://magic-link
+    // In production: https://fixrx.com/auth/magic-link (with universal links)
+    this.BASE_URL = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? 'https://fixrx.com' : 'fixrx://');
+    this.APP_SCHEME = process.env.APP_SCHEME || 'fixrx';
     this.API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000/api/v1';
   }
 
@@ -83,9 +87,24 @@ class MagicLinkService {
         userAgent,
         expiresAt
       });
+
+      // Generate magic link URL for mobile app
+      let webRedirectUrl;
+      let directDeepLink = null;
       
-      const webRedirectUrl = `${this.API_BASE_URL.replace('/api/v1', '')}/magic-link?token=${token}&email=${encodeURIComponent(email)}`;
-      const directDeepLink = `fixrx://magic-link?token=${token}&email=${encodeURIComponent(email)}`;
+      if (this.BASE_URL.startsWith('exp://')) {
+        // Expo development URL
+        webRedirectUrl = `${this.BASE_URL}?token=${token}&email=${encodeURIComponent(email)}`;
+      } else if (this.BASE_URL.startsWith('fixrx://')) {
+        // Custom scheme for mobile app (development)
+        directDeepLink = `${this.APP_SCHEME}://magic-link?token=${token}&email=${encodeURIComponent(email)}`;
+        // Provide web fallback for testing
+        webRedirectUrl = `${this.API_BASE_URL.replace('/api/v1', '')}/magic-link?token=${token}&email=${encodeURIComponent(email)}`;
+      } else {
+        // Production HTTPS URL with universal links
+        webRedirectUrl = `${this.BASE_URL}/auth/magic-link?token=${token}&email=${encodeURIComponent(email)}`;
+        directDeepLink = `fixrx://magic-link?token=${token}&email=${encodeURIComponent(email)}`;
+      }
 
       const emailResult = await this.sendMagicLinkEmail(email, webRedirectUrl, purpose, existingUser?.first_name, directDeepLink);
 
@@ -205,7 +224,7 @@ class MagicLinkService {
       };
 
     } catch (error) {
-      console.error('🚨 CRITICAL ERROR in verifyMagicLink:', {
+      console.error('CRITICAL ERROR in verifyMagicLink:', {
         error: error.message,
         stack: error.stack?.split('\n').slice(0, 5).join('\n'),
         token: token.substring(0, 10) + '...',
@@ -253,6 +272,7 @@ class MagicLinkService {
         return { allowed: true, devBypass: true };
       }
 
+      const maxRequests = 5; // Maximum 5 requests per 15 minutes
       const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
       
       const query = `

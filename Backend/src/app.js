@@ -5,12 +5,19 @@
  */
 
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const { dbManager } = require('./config/database');
 const { queueManager } = require('./services/queueManager');
 const { auth0Service } = require('./services/auth0Service');
 const { geoSearchService } = require('./services/geoSearchService');
 const { monitoringService } = require('./services/monitoringService');
 const socketManager = require('./services/socketManager');
+
+// Ensure JWT_SECRET is set
+if (!process.env.JWT_SECRET) {
+  console.warn('WARNING: JWT_SECRET is not set. Using default secret. This is not recommended for production.');
+  process.env.JWT_SECRET = 'your-secret-key';
+}
 
 const {
   rateLimiters,
@@ -36,7 +43,7 @@ class FixRxApplication {
 
   async initialize() {
     try {
-      console.log('🚀 Initializing FixRx Application...');
+      console.log('Initializing FixRx Application...');
 
       // Initialize core services
       await this.initializeServices();
@@ -47,11 +54,14 @@ class FixRxApplication {
       // Setup routes
       this.setupRoutes();
       
-      // Setup error handling
+      // Setup web redirect routes
+      this.setupWebRedirectRoutes();
+      
+      // Setup error handling (must be last)
       this.setupErrorHandling();
 
       this.isInitialized = true;
-      console.log('✅ FixRx Application Initialized Successfully');
+      console.log('FixRx Application Initialized Successfully');
 
       return {
         initialized: true,
@@ -66,13 +76,13 @@ class FixRxApplication {
       };
 
     } catch (error) {
-      console.error('❌ FixRx Application Initialization Failed:', error);
+      console.error('FixRx Application Initialization Failed:', error);
       throw error;
     }
   }
 
   async initializeServices() {
-    console.log('📦 Initializing Services...');
+    console.log('Initializing Services...');
 
     // Initialize Database Manager (PostgreSQL + Redis)
     await dbManager.initialize();
@@ -89,11 +99,11 @@ class FixRxApplication {
     // Initialize Monitoring Service
     await monitoringService.initialize();
 
-    console.log('✅ All Services Initialized');
+    console.log('All Services Initialized');
   }
 
   setupMiddleware() {
-    console.log('🔧 Setting up Middleware Stack...');
+    console.log('Setting up Middleware Stack...');
 
     // Health check (before other middleware)
     this.app.use(healthCheck);
@@ -121,11 +131,11 @@ class FixRxApplication {
     this.app.use('/api/v1', rateLimiters.api);
     this.app.use('/', rateLimiters.general);
 
-    console.log('✅ Middleware Stack Configured');
+    console.log('Middleware Stack Configured');
   }
 
   setupRoutes() {
-    console.log('🛣️ Setting up Routes...');
+    console.log('Setting up Routes...');
 
     // API Routes
     this.setupAuthRoutes();
@@ -140,8 +150,9 @@ class FixRxApplication {
     this.setupMonitoringRoutes();
     this.setupSystemRoutes();
     this.setupMobileAppRoutes();
+    this.setupPaymentRoutes();
 
-    console.log('✅ Routes Configured');
+    console.log('Routes Configured');
   }
 
   setupAuthRoutes() {
@@ -209,6 +220,17 @@ class FixRxApplication {
           userAgent: req.get('User-Agent')
         });
 
+        // Generate JWT token
+        const token = jwt.sign(
+          { 
+            userId: user.id,
+            email: user.email,
+            role: user.role 
+          },
+          process.env.JWT_SECRET,
+          { expiresIn: '24h' }
+        );
+
         // Track user activity
         await monitoringService.trackUserActivity(user.id, 'login', { userType: user.role });
 
@@ -216,6 +238,8 @@ class FixRxApplication {
           success: true,
           message: 'Login successful',
           data: {
+            token: token,
+            sessionId: sessionId,
             user: {
               id: user.id,
               email: user.email,
@@ -590,21 +614,66 @@ class FixRxApplication {
   }
 
   setupMobileAppRoutes() {
-    // Mobile app specific routes
-    const mobileAppRoutes = require('./routes/mobileAppRoutes');
-    this.app.use('/api/v1', mobileAppRoutes);
-    
-    // Web redirect routes for magic links (browser fallback)
-    const webRedirectRoutes = require('./routes/webRedirectRoutes');
-    this.app.use('/magic-link', webRedirectRoutes);
+    try {
+      console.log('📱 Setting up Mobile App Routes...');
+      const mobileAppRoutes = require('./routes/mobileAppRoutes');
+      this.app.use('/api/v1', mobileAppRoutes); // Mount at /api/v1
+      console.log('✅ Mobile App Routes Configured');
+    } catch (error) {
+      console.error('❌ Failed to setup mobile app routes:', error);
+      throw error; // Re-throw to prevent app start with misconfigured routes
+    }
   }
 
+  /**
+   * Setup payment related routes
+   */
+  setupPaymentRoutes() {
+    try {
+      console.log('💳 Setting up Payment Routes...');
+      
+      // Load payment routes
+      const paymentRoutes = require('./routes/paymentRoutes');
+      
+      // Apply rate limiting and payment routes
+      this.app.use('/api/v1/payments', rateLimiters.api);
+      this.app.use('/api/v1/payments', paymentRoutes);
+      
+      console.log('✅ Payment Routes Configured');
+    } catch (error) {
+      console.error('❌ Failed to setup payment routes:', error);
+      throw error; // Re-throw to be caught by the error handler
+    }
+  }
+  
+  /**
+   * Setup web redirect routes (for magic links, etc.)
+   */
+  setupWebRedirectRoutes() {
+    try {
+      console.log('🌐 Setting up Web Redirect Routes...');
+      const webRedirectRoutes = require('./routes/webRedirectRoutes');
+      this.app.use('/magic-link', webRedirectRoutes);
+      console.log('✅ Web Redirect Routes Configured');
+    } catch (error) {
+      console.error('❌ Failed to setup web redirect routes:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Setup error handling middleware
+   */
   setupErrorHandling() {
+    console.log('⚙️  Setting up Error Handling...');
+    
     // 404 handler
     this.app.use(notFoundHandler);
     
     // Global error handler
     this.app.use(errorHandler);
+    
+    console.log('✅ Error Handling Configured');
   }
 
   async start(port = process.env.PORT || 3000) {
@@ -615,17 +684,17 @@ class FixRxApplication {
 
       this.server = this.app.listen(port, () => {
         console.log(`
-🚀 FixRx Application Server Started
+FixRx Application Server Started
 ===========================================
-🎯 Architecture: ${process.env.NODE_ENV || 'development'}
-📡 Port: ${port}
-🗄️ Database: ${dbManager.getStatus().connected ? 'Connected' : 'Disconnected'}
-🔄 Queue: ${queueManager.isInitialized ? 'Active' : 'Inactive'}
-🔐 Auth0: ${auth0Service.getStatus().initialized ? 'Connected' : 'Disconnected'}
-🗺️ GeoSearch: ${geoSearchService.getStatus().initialized ? 'Active' : 'Inactive'}
-📊 Monitoring: ${monitoringService.getStatus().initialized ? 'Active' : 'Inactive'}
+Architecture: ${process.env.NODE_ENV || 'development'}
+Port: ${port}
+Database: ${dbManager.getStatus().connected ? 'Connected' : 'Disconnected'}
+Queue: ${queueManager.isInitialized ? 'Active' : 'Inactive'}
+Auth0: ${auth0Service.getStatus().initialized ? 'Connected' : 'Disconnected'}
+GeoSearch: ${geoSearchService.getStatus().initialized ? 'Active' : 'Inactive'}
+Monitoring: ${monitoringService.getStatus().initialized ? 'Active' : 'Inactive'}
 ===========================================
-🎯 Ready for Production Traffic!
+Ready for Production Traffic!
         `);
       });
 
@@ -633,7 +702,7 @@ class FixRxApplication {
       return this.server;
 
     } catch (error) {
-      console.error('❌ Server Start Failed:', error);
+      console.error('Server Start Failed:', error);
       throw error;
     }
   }
@@ -649,10 +718,10 @@ class FixRxApplication {
       await dbManager.close();
       socketManager.close();
 
-      console.log('✅ FixRx Application Server Stopped');
+      console.log('FixRx Application Server Stopped');
 
     } catch (error) {
-      console.error('❌ Server Stop Failed:', error);
+      console.error('Server Stop Failed:', error);
     }
   }
 

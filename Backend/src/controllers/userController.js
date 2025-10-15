@@ -18,14 +18,16 @@ class UserController {
         });
       }
 
-      const result = await dbManager.query(
-        `SELECT id, email, first_name, last_name, user_type, phone, 
-                phone_verified, phone_verified_at, email_verified, 
-                created_at, updated_at, last_login_at
-         FROM users 
-         WHERE id = $1`,
-        [userId]
-      );
+      // Simplified query without profiles table
+      const result = await dbManager.query(`
+        SELECT 
+          id, email, phone, first_name, last_name,
+          user_type, phone_verified_at, email_verified_at, 
+          created_at, updated_at, last_login_at,
+          stripe_customer_id, is_active
+        FROM users
+        WHERE id = $1
+      `, [userId]);
 
       if (!result.rows.length) {
         return res.status(404).json({
@@ -37,17 +39,18 @@ class UserController {
 
       const user = result.rows[0];
       
-      // Transform to match frontend expectations
+      // Simplified response without profile data
       const userProfile = {
         id: user.id,
         email: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name,
+        firstName: user.first_name || '',
+        lastName: user.last_name || '',
         userType: user.user_type,
-        phone: user.phone,
-        phoneVerified: user.phone_verified,
-        phoneVerifiedAt: user.phone_verified_at,
-        emailVerified: user.email_verified,
+        phone: user.phone || null,
+        phoneVerified: !!user.phone_verified_at,
+        emailVerified: !!user.email_verified_at,
+isActive: user.is_active !== false,
+        stripeCustomerId: user.stripe_customer_id || null,
         createdAt: user.created_at,
         updatedAt: user.updated_at,
         lastLoginAt: user.last_login_at
@@ -57,9 +60,8 @@ class UserController {
         success: true,
         data: { user: userProfile }
       });
-
     } catch (error) {
-      logger.error('Get profile error:', error);
+      logger.error('Error getting user profile:', error);
       return res.status(500).json({
         success: false,
         message: 'Failed to get user profile',

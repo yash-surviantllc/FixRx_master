@@ -8,6 +8,9 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "scheme": "fixrx",
+    "experiments": {
+      "typedRoutes": false
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -16,7 +19,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fixrx.mobile",
-      "associatedDomains": ["applinks:fixrx.app", "applinks:*.fixrx.app"]
+      "associatedDomains": [
+        "applinks:fixrx.com",
+        "applinks:*.fixrx.com"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -24,14 +30,20 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.fixrx.mobile",
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
       "intentFilters": [
         {
           "action": "VIEW",
           "autoVerify": true,
           "data": [
             {
+              "scheme": "fixrx",
+              "host": "*"
+            },
+            {
               "scheme": "https",
-              "host": "*.fixrx.app",
+              "host": "*.fixrx.com",
               "pathPrefix": "/auth/magic-link"
             },
             {
@@ -40,11 +52,12 @@
               "pathPrefix": "/auth/magic-link"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
-      ],
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

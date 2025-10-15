@@ -144,12 +144,23 @@ class DeepLinkHandler {
     };
   }
 
+  /**
+   * Generate magic link URL for email
+   * Uses custom scheme for mobile app deep linking
+   */
   generateMagicLinkUrl(token: string, email: string): string {
-    const baseUrl = __DEV__ 
-      ? 'http://localhost:3001' 
-      : 'https://your-app.com';
+    // Use custom scheme for mobile app
+    const scheme = process.env.EXPO_PUBLIC_APP_SCHEME || 'fixrx';
+    const appDomain = process.env.EXPO_PUBLIC_APP_DOMAIN || 'fixrx.com';
     
-    return `${baseUrl}/auth/magic-link?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+    // In development, use custom scheme directly
+    // In production, use HTTPS with domain that redirects to app
+    if (__DEV__) {
+      return `${scheme}://magic-link?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+    }
+    
+    // Production: Use HTTPS URL that will be handled by universal links
+    return `https://${appDomain}/auth/magic-link?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
   }
 }
 

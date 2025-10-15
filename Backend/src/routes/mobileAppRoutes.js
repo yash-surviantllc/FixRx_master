@@ -5,7 +5,9 @@
 
 const express = require('express');
 const { Client } = require('pg');
-const { authenticateToken, requireRole, optionalAuth } = require('../middleware');
+const { body, validationResult } = require('express-validator');
+const { authenticateToken } = require('../middleware/auth');
+const socketManager = require('../services/socketManager');
 
 const router = express.Router();
 
@@ -106,12 +108,59 @@ router.get('/services/categories/:categoryId/services', async (req, res) => {
 // CONNECTION REQUESTS
 // =============================================================================
 
+// Validation middleware for connection requests
+const validateConnectionRequest = [
+  body('vendorId')
+    .notEmpty().withMessage('Vendor ID is required')
+    .isUUID().withMessage('Vendor ID must be a valid UUID'),
+  body('serviceId')
+    .optional()
+    .isUUID().withMessage('Service ID must be a valid UUID'),
+  body('message')
+    .notEmpty().withMessage('Message is required')
+    .isLength({ min: 10 }).withMessage('Message must be at least 10 characters'),
+  body('projectDescription')
+    .optional()
+    .isString(),
+  body('budgetMin')
+    .optional()
+    .isInt({ min: 0 }).withMessage('Budget minimum must be a positive number'),
+  body('budgetMax')
+    .optional()
+    .isInt({ min: 0 }).withMessage('Budget maximum must be a positive number')
+    .custom((value, { req }) => {
+      if (req.body.budgetMin && value < req.body.budgetMin) {
+        throw new Error('Budget maximum must be >= budget minimum');
+      }
+      return true;
+    }),
+  body('urgency')
+    .optional()
+    .isIn(['LOW', 'MEDIUM', 'HIGH']).withMessage('Urgency must be LOW, MEDIUM, or HIGH')
+];
+
 /**
  * @route POST /api/v1/connections/request
  * @desc Create a connection request from consumer to vendor
  * @access Private (Consumer)
  */
-router.post('/connections/request', authenticateToken, async (req, res) => {
+router.post('/connections/request', authenticateToken, validateConnectionRequest, async (req, res) => {
+  // Check validation results
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid input data',
+        details: errors.array().map(err => ({
+          field: err.path || err.param,
+          message: err.msg
+        }))
+      }
+    });
+  }
+
   const client = new Client(dbConfig);
   const { vendorId, serviceId, message, projectDescription, budgetMin, budgetMax, preferredStartDate, urgency } = req.body;
   
@@ -128,25 +177,57 @@ router.post('/connections/request', authenticateToken, async (req, res) => {
     }
 
     // Create connection request
-    const result = await client.query(`
+    const query = `
       INSERT INTO connection_requests (
         consumer_id, vendor_id, service_id, message, project_description, 
-        budget_range_min, budget_range_max, preferred_start_date, urgency
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        budget_range_min, budget_range_max, preferred_start_date, urgency,
+        status, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'PENDING', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING *
-    `, [req.user.id, vendorId, serviceId, message, projectDescription, budgetMin, budgetMax, preferredStartDate, urgency || 'MEDIUM']);
+    `;
+    
+    const values = [
+      req.user.id,
+      vendorId,
+      serviceId || null,
+      message,
+      projectDescription || null,
+      budgetMin || null,
+      budgetMax || null,
+      preferredStartDate || null,
+      (urgency || 'MEDIUM').toUpperCase()
+    ];
+
+    const result = await client.query(query, values);
+    const connectionRequest = result.rows[0];
+    
+    // Emit service created event
+    try {
+      socketManager.emitServiceCreated({
+        id: connectionRequest.id,
+        consumerId: connectionRequest.consumer_id,
+        vendorId: connectionRequest.vendor_id,
+        serviceId: connectionRequest.service_id,
+        message: connectionRequest.message,
+        status: connectionRequest.status,
+        createdAt: connectionRequest.created_at
+      });
+    } catch (socketError) {
+      console.error('Failed to emit service:created event:', socketError);
+      // Don't fail the request if socket emission fails
+    }
 
     res.status(201).json({
       success: true,
       message: 'Connection request created successfully',
       data: {
-        connectionRequest: result.rows[0]
+        connectionRequest
       }
     });
 
   } catch (error) {
     console.error('Create connection request error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: {
         code: 'DATABASE_ERROR',
@@ -257,6 +338,9 @@ router.put('/connections/requests/:requestId/status', authenticateToken, async (
       });
     }
 
+    // Get the request details before updating
+    const requestDetails = requestResult.rows[0];
+    
     // Update status
     const result = await client.query(`
       UPDATE connection_requests 
@@ -264,12 +348,33 @@ router.put('/connections/requests/:requestId/status', authenticateToken, async (
       WHERE id = $2
       RETURNING *
     `, [status, requestId]);
+    
+    const updatedRequest = result.rows[0];
+    
+    // Emit appropriate event based on status
+    try {
+      const vendorInfo = {
+        id: req.user.id,
+        firstName: req.user.first_name,
+        lastName: req.user.last_name,
+        email: req.user.email
+      };
+      
+      if (status === 'ACCEPTED') {
+        socketManager.emitServiceAccepted(updatedRequest, vendorInfo);
+      } else if (status === 'DECLINED') {
+        socketManager.emitServiceRejected(updatedRequest, vendorInfo);
+      }
+    } catch (socketError) {
+      logger.error(`Failed to emit service:${status.toLowerCase()} event`, socketError);
+      // Don't fail the request if socket emission fails
+    }
 
     res.json({
       success: true,
       message: `Connection request ${status.toLowerCase()}`,
       data: {
-        connectionRequest: result.rows[0]
+        connectionRequest: updatedRequest
       }
     });
 

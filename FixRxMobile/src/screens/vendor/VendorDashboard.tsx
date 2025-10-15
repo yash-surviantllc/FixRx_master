@@ -1,15 +1,51 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Vibration } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../types/navigation';
 import { useAppContext } from '../../context/AppContext';
+import { websocketService } from '../../services/websocketService';
 
 type VendorDashboardNavigationProp = StackNavigationProp<RootStackParamList, 'VendorDashboard'>;
 
 const VendorDashboard: React.FC = () => {
   const navigation = useNavigation<VendorDashboardNavigationProp>();
   const { userProfile } = useAppContext();
+  const [newRequestCount, setNewRequestCount] = useState(0);
+
+  // Setup WebSocket listeners for real-time updates
+  useEffect(() => {
+    // Listen for new connection requests
+    const unsubscribe = websocketService.on('service:created', (service) => {
+      console.log('New connection request received:', service);
+      
+      // Show alert notification
+      Alert.alert(
+        'New Connection Request! 🔔',
+        `${service.serviceName || 'New service'} - ${service.location || 'Location not specified'}`,
+        [{ text: 'OK' }]
+      );
+      
+      // Vibrate device
+      Vibration.vibrate(500);
+      
+      // Increment badge count
+      setNewRequestCount(prev => prev + 1);
+    });
+    
+    // Connect to WebSocket
+    websocketService.connect();
+    
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  const handleViewRequests = () => {
+    setNewRequestCount(0); // Reset badge count when viewing requests
+    // Navigate to requests screen or show requests
+    // navigation.navigate('ServiceRequests'); // Uncomment when you have this screen
+  };
 
   // Mock data for upcoming appointments
   const upcomingAppointments = [
@@ -51,7 +87,14 @@ const VendorDashboard: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Welcome back, {userProfile?.businessName || userProfile?.firstName}</Text>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.greeting}>Welcome back, {userProfile?.businessName || userProfile?.firstName}</Text>
+            {newRequestCount > 0 && (
+              <TouchableOpacity style={styles.badge} onPress={handleViewRequests}>
+                <Text style={styles.badgeText}>{newRequestCount}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           <Text style={styles.subtitle}>Here's what's happening today</Text>
         </View>
         <TouchableOpacity 
@@ -221,6 +264,25 @@ const VendorDashboard: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  headerTextContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  badge: {
+    backgroundColor: 'red',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',

@@ -413,3 +413,20 @@ Dockerfile.dev
 # - Use .env.example files for configuration templates
 # - Never commit API keys or passwords
 # - Keep this file updated as project evolves
+
+# Environment files (never commit these)
+.env
+.env.local
+.env*.local
+env
+Backend/.env
+Backend/env
+Frontend/.env
+FixRxMobile/.env
+
+# Environment files
+.env
+.env.local
+env
+Backend/.env
+Backend/env
