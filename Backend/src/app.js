@@ -5,12 +5,19 @@
  */
 
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const { dbManager } = require('./config/database');
 const { queueManager } = require('./services/queueManager');
 const { auth0Service } = require('./services/auth0Service');
 const { geoSearchService } = require('./services/geoSearchService');
 const { monitoringService } = require('./services/monitoringService');
 const socketManager = require('./services/socketManager');
+
+// Ensure JWT_SECRET is set
+if (!process.env.JWT_SECRET) {
+  console.warn('WARNING: JWT_SECRET is not set. Using default secret. This is not recommended for production.');
+  process.env.JWT_SECRET = 'your-secret-key';
+}
 
 const {
   rateLimiters,
@@ -47,7 +54,10 @@ class FixRxApplication {
       // Setup routes
       this.setupRoutes();
       
-      // Setup error handling
+      // Setup web redirect routes
+      this.setupWebRedirectRoutes();
+      
+      // Setup error handling (must be last)
       this.setupErrorHandling();
 
       this.isInitialized = true;
@@ -140,6 +150,7 @@ class FixRxApplication {
     this.setupMonitoringRoutes();
     this.setupSystemRoutes();
     this.setupMobileAppRoutes();
+    this.setupPaymentRoutes();
 
     console.log('✅ Routes Configured');
   }
@@ -209,6 +220,17 @@ class FixRxApplication {
           userAgent: req.get('User-Agent')
         });
 
+        // Generate JWT token
+        const token = jwt.sign(
+          { 
+            userId: user.id,
+            email: user.email,
+            role: user.role 
+          },
+          process.env.JWT_SECRET,
+          { expiresIn: '24h' }
+        );
+
         // Track user activity
         await monitoringService.trackUserActivity(user.id, 'login', { userType: user.role });
 
@@ -216,6 +238,8 @@ class FixRxApplication {
           success: true,
           message: 'Login successful',
           data: {
+            token: token,
+            sessionId: sessionId,
             user: {
               id: user.id,
               email: user.email,
@@ -591,20 +615,59 @@ class FixRxApplication {
 
   setupMobileAppRoutes() {
     // Mobile app specific routes
-    const mobileAppRoutes = require('./routes/mobileAppRoutes');
-    this.app.use('/api/v1', mobileAppRoutes);
-    
-    // Web redirect routes for magic links (browser fallback)
-    const webRedirectRoutes = require('./routes/webRedirectRoutes');
-    this.app.use('/magic-link', webRedirectRoutes);
+    const mobileRoutes = require('./routes/mobileRoutes');
+    this.app.use('/api/v1/mobile', mobileRoutes);
   }
 
+  /**
+   * Setup payment related routes
+   */
+  setupPaymentRoutes() {
+    try {
+      console.log('💳 Setting up Payment Routes...');
+      
+      // Load payment routes
+      const paymentRoutes = require('./routes/paymentRoutes');
+      
+      // Apply rate limiting and payment routes
+      this.app.use('/api/v1/payments', rateLimiters.api);
+      this.app.use('/api/v1/payments', paymentRoutes);
+      
+      console.log('✅ Payment Routes Configured');
+    } catch (error) {
+      console.error('❌ Failed to setup payment routes:', error);
+      throw error; // Re-throw to be caught by the error handler
+    }
+  }
+  
+  /**
+   * Setup web redirect routes (for magic links, etc.)
+   */
+  setupWebRedirectRoutes() {
+    try {
+      console.log('🌐 Setting up Web Redirect Routes...');
+      const webRedirectRoutes = require('./routes/webRedirectRoutes');
+      this.app.use('/magic-link', webRedirectRoutes);
+      console.log('✅ Web Redirect Routes Configured');
+    } catch (error) {
+      console.error('❌ Failed to setup web redirect routes:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Setup error handling middleware
+   */
   setupErrorHandling() {
+    console.log('⚙️  Setting up Error Handling...');
+    
     // 404 handler
     this.app.use(notFoundHandler);
     
     // Global error handler
     this.app.use(errorHandler);
+    
+    console.log('✅ Error Handling Configured');
   }
 
   async start(port = process.env.PORT || 3000) {
