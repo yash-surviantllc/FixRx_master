@@ -614,9 +614,15 @@ class FixRxApplication {
   }
 
   setupMobileAppRoutes() {
-    // Mobile app specific routes
-    const mobileRoutes = require('./routes/mobileRoutes');
-    this.app.use('/api/v1/mobile', mobileRoutes);
+    try {
+      console.log('📱 Setting up Mobile App Routes...');
+      const mobileAppRoutes = require('./routes/mobileAppRoutes');
+      this.app.use('/api/v1', mobileAppRoutes); // Mount at /api/v1
+      console.log('✅ Mobile App Routes Configured');
+    } catch (error) {
+      console.error('❌ Failed to setup mobile app routes:', error);
+      throw error; // Re-throw to prevent app start with misconfigured routes
+    }
   }
 
   /**

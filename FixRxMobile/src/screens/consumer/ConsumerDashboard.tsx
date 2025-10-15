@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -9,7 +9,9 @@ import {
   TextInput,
   SafeAreaView,
   StatusBar,
-  Switch
+  Switch,
+  Alert,
+  Vibration
 } from 'react-native';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../types/navigation';
@@ -17,15 +19,133 @@ import { useAppContext } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import SearchBar from '../../components/SearchBar';
+import { websocketService } from '../../services/websocketService';
 
 type ConsumerDashboardNavigationProp = NavigationProp<RootStackParamList>;
 
 const ConsumerDashboard: React.FC = () => {
   const navigation = useNavigation<ConsumerDashboardNavigationProp>();
   const { userProfile } = useAppContext();
+  
+  // Ensure WebSocket is connected when component mounts
+  useEffect(() => {
+    // Ensure websocket is connected
+    if (!websocketService.isConnected) {
+      websocketService.connect().catch(error => {
+        console.log('WebSocket connection error:', error);
+      });
+    }
+  }, []);
   const { colors, isDarkMode, toggleTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('Available now');
+  
+  // Real-time connection request updates
+  useEffect(() => {
+    // Listen for service accepted events
+    const unsubscribeAccepted = websocketService.on('service:accepted', (data) => {
+      console.log('Connection request accepted:', data);
+      
+      // Show alert
+      Alert.alert(
+        '✅ Request Accepted!',
+        `${data.vendorInfo?.name || 'A vendor'} has accepted your connection request!`,
+        [
+          {
+            text: 'View Details',
+            onPress: () => {
+              // Can navigate to vendor details when ready
+              console.log('Navigate to vendor:', data.vendorInfo?.id);
+            },
+          },
+          { text: 'OK', style: 'default' },
+        ]
+      );
+      
+      // Vibrate for feedback
+      Vibration.vibrate([0, 200, 100, 200]);
+      
+      // Optionally refresh the connection requests list
+      // refetchConnectionRequests();
+    });
+    
+    // Listen for service rejected events
+    const unsubscribeRejected = websocketService.on('service:rejected', (data) => {
+      console.log('Connection request rejected:', data);
+      
+      Alert.alert(
+        'Request Declined',
+        `${data.vendorInfo?.name || 'A vendor'} declined your request. Other vendors may still respond!`,
+        [{ text: 'OK', style: 'default' }]
+      );
+      
+      // Optionally refresh the list
+      // refetchConnectionRequests();
+    });
+    
+    // Listen for service completed events
+    const unsubscribeCompleted = websocketService.on('service:completed', (data) => {
+      console.log('Service completed:', data);
+      
+      Alert.alert(
+        '🎉 Service Completed!',
+        'Your service has been marked as completed. Please rate your experience!',
+        [
+          {
+            text: 'Rate Now',
+            onPress: () => {
+              // Navigate to rating when ready
+              console.log('Navigate to rating for service:', data.serviceRequest?.id);
+            },
+          },
+          { text: 'Later', style: 'cancel' },
+        ]
+      );
+      
+      Vibration.vibrate([0, 300]);
+    });
+    
+    // Listen for payment completed events
+    const unsubscribePayment = websocketService.on('payment:completed', (data) => {
+      console.log('Payment completed:', data);
+      
+      Alert.alert(
+        '💳 Payment Successful',
+        `Your payment of $${(data.amount / 100).toFixed(2)} has been processed successfully!`,
+        [{ text: 'OK', style: 'default' }]
+      );
+      
+      Vibration.vibrate([0, 200]);
+    });
+    
+    // Listen for payment failed events
+    const unsubscribePaymentFailed = websocketService.on('payment:failed', (data) => {
+      console.log('Payment failed:', data);
+      
+      Alert.alert(
+        '❌ Payment Failed',
+        data.error || 'There was an issue processing your payment. Please try again.',
+        [
+          {
+            text: 'Retry',
+            onPress: () => {
+              console.log('Retry payment:', data.paymentId);
+            },
+          },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    });
+    
+    return () => {
+      // Cleanup all listeners
+      unsubscribeAccepted();
+      unsubscribeRejected();
+      unsubscribeCompleted();
+      unsubscribePayment();
+      unsubscribePaymentFailed();
+    };
+  }, []);
 
   const filters = ['Available now', 'Highly rated', 'Close by'];
 

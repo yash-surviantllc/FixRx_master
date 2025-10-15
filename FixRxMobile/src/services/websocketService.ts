@@ -11,7 +11,22 @@ type WebsocketEventName =
   | 'message:new'
   | 'conversation:created'
   | 'conversation:read'
-  | 'conversation:typing';
+  | 'conversation:typing'
+  // Service Events
+  | 'service:created'
+  | 'service:updated'
+  | 'service:accepted'
+  | 'service:rejected'
+  | 'service:completed'
+  // Booking Events
+  | 'booking:confirmed'
+  | 'booking:status_changed'
+  | 'booking:cancelled'
+  // Payment Events
+  | 'payment:completed'
+  | 'payment:failed'
+  // Location Events
+  | 'location:update';
 
 type EventCallback = (data: any) => void;
 
