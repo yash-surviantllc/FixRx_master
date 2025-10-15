@@ -1,5 +1,6 @@
 const Joi = require('joi');
 const messagingService = require('../services/messagingService');
+const socketManager = require('../services/socketManager');
 const { logger } = require('../utils/logger');
 
 class MessagingController {

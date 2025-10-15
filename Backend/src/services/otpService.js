@@ -23,7 +23,7 @@ class OtpService {
   /**
    * Send OTP code to phone number
    */
-  async sendOtp(rawPhone, purpose = 'LOGIN', ipAddress = '', userAgent = '') {
+  async sendOtp(rawPhone, purpose = 'LOGIN', ipAddress = '', userAgent = '', userType = 'CONSUMER') {
     try {
       const normalizedPurpose = OTP_PURPOSES.includes(purpose) ? purpose : 'LOGIN';
       const phoneNumber = this.formatPhoneNumber(rawPhone);
@@ -157,7 +157,7 @@ class OtpService {
   /**
    * Verify OTP code
    */
-  async verifyOtp(rawPhone, code, ipAddress = '', userAgent = '') {
+  async verifyOtp(rawPhone, code, ipAddress = '', userAgent = '', userType = 'CONSUMER') {
     try {
       const phoneNumber = this.formatPhoneNumber(rawPhone);
 
@@ -206,7 +206,8 @@ class OtpService {
       const userResult = await this.findOrCreateUserByPhone(phoneNumber, {
         ipAddress,
         userAgent,
-        purpose: verification.purpose
+        purpose: verification.purpose,
+        userType
       });
 
       const sessionToken = await this.createPhoneAuthSession({
@@ -544,12 +545,12 @@ class OtpService {
     return result.rows[0] || null;
   }
 
-  async findOrCreateUserByPhone(phoneNumber, { ipAddress, userAgent, purpose }) {
+  async findOrCreateUserByPhone(phoneNumber, { ipAddress, userAgent, purpose, userType = 'CONSUMER' }) {
     let user = await this.findUserByPhone(phoneNumber);
     let isNewUser = false;
 
     if (!user) {
-      user = await this.createUserFromPhone(phoneNumber, purpose);
+      user = await this.createUserFromPhone(phoneNumber, purpose, userType);
       isNewUser = true;
     }
 
@@ -575,7 +576,7 @@ class OtpService {
     };
   }
 
-  async createUserFromPhone(phoneNumber, purpose) {
+  async createUserFromPhone(phoneNumber, purpose, userType = 'CONSUMER') {
     const sanitizedPhone = phoneNumber.replace(/[^\d]/g, '');
     let generatedEmail = `${sanitizedPhone}@fixrx.app`;
 
@@ -617,7 +618,7 @@ class OtpService {
         passwordHash,
         'New',
         'User',
-        'consumer',
+        userType.toLowerCase(),
         phoneNumber
       ]
     );

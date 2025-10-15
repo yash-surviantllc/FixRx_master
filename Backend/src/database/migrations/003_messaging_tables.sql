@@ -16,18 +16,64 @@ DO $$ BEGIN
     END IF;
 END $$;
 
--- =============================================
--- CONVERSATIONS TABLE
--- =============================================
-CREATE TABLE IF NOT EXISTS conversations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    title VARCHAR(255),
-    conversation_type VARCHAR(32) DEFAULT 'consumer_vendor',
-    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-    metadata JSONB DEFAULT '{}'::jsonb,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'conversations'
+    ) THEN
+        CREATE TABLE conversations (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            title VARCHAR(255),
+            conversation_type VARCHAR(32) DEFAULT 'consumer_vendor',
+            created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+            metadata JSONB DEFAULT '{}'::jsonb,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+        );
+    ELSE
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'conversations' AND column_name = 'conversation_type'
+        ) THEN
+            ALTER TABLE conversations
+                ADD COLUMN conversation_type VARCHAR(32) DEFAULT 'consumer_vendor';
+        END IF;
+
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'conversations' AND column_name = 'created_by'
+        ) THEN
+            ALTER TABLE conversations
+                ADD COLUMN created_by UUID REFERENCES users(id) ON DELETE SET NULL;
+        END IF;
+
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'conversations' AND column_name = 'metadata'
+        ) THEN
+            ALTER TABLE conversations
+                ADD COLUMN metadata JSONB DEFAULT '{}'::jsonb;
+        END IF;
+
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'conversations' AND column_name = 'created_at'
+        ) THEN
+            ALTER TABLE conversations
+                ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
+        END IF;
+
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'conversations' AND column_name = 'updated_at'
+        ) THEN
+            ALTER TABLE conversations
+                ADD COLUMN updated_at TIMESTAMPTZ DEFAULT NOW();
+        END IF;
+    END IF;
+END
+$$;
 
 CREATE INDEX IF NOT EXISTS idx_conversations_type ON conversations(conversation_type);
 CREATE INDEX IF NOT EXISTS idx_conversations_created_at ON conversations(created_at DESC);
@@ -50,9 +96,28 @@ CREATE TABLE IF NOT EXISTS conversation_participants (
 CREATE INDEX IF NOT EXISTS idx_conversation_participants_user ON conversation_participants(user_id);
 CREATE INDEX IF NOT EXISTS idx_conversation_participants_conversation ON conversation_participants(conversation_id);
 
--- =============================================
--- MESSAGES TABLE
--- =============================================
+DO $$
+DECLARE
+    has_conversation_id BOOLEAN;
+    has_recipient_id BOOLEAN;
+BEGIN
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'messages' AND column_name = 'conversation_id'
+    ) INTO has_conversation_id;
+
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'messages' AND column_name = 'recipient_id'
+    ) INTO has_recipient_id;
+
+    IF has_recipient_id AND (NOT has_conversation_id) THEN
+        RAISE NOTICE 'Renaming legacy messages table to messages_legacy';
+        ALTER TABLE messages RENAME TO messages_legacy;
+    END IF;
+END
+$$;
+
 CREATE TABLE IF NOT EXISTS messages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,

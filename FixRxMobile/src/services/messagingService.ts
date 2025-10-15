@@ -1,5 +1,5 @@
 import { apiClient, ApiResponse } from './apiClient';
-import { API_ENDPOINTS } from '../config/api';
+import { API_ENDPOINTS, ERROR_MESSAGES } from '../config/api';
 import {
   Conversation,
   ConversationListResponse,
@@ -12,6 +12,8 @@ import {
 } from '../types/messaging';
 
 type BackendCall<T> = () => Promise<ApiResponse<T>>;
+
+const USE_MOCK_MESSAGING = process.env.EXPO_PUBLIC_USE_MOCK_MESSAGING === 'true';
 
 const MOCK_CONVERSATIONS: Conversation[] = [
   {
@@ -74,21 +76,57 @@ const MOCK_MESSAGES: Message[] = [
 ];
 
 class MessagingService {
-  private async useBackendOrMock<T>(backendCall: BackendCall<T>, mockData: T): Promise<ApiResponse<T>> {
-    try {
-      const isAvailable = await apiClient.isBackendAvailable();
-      if (isAvailable) {
-        return await backendCall();
-      }
-    } catch (error) {
-      console.log('Backend unavailable, using mock messaging data.', error);
+  private shouldFallbackToMock(error?: string): boolean {
+    if (USE_MOCK_MESSAGING) {
+      return true;
     }
 
+    if (!error) {
+      return false;
+    }
+
+    const normalized = error.toLowerCase();
+    return (
+      normalized.includes('network') ||
+      normalized.includes('timeout') ||
+      normalized.includes('fetch') ||
+      normalized.includes('offline') ||
+      normalized === ERROR_MESSAGES.NETWORK_ERROR.toLowerCase() ||
+      normalized === ERROR_MESSAGES.TIMEOUT_ERROR.toLowerCase()
+    );
+  }
+
+  private buildMockResponse<T>(mockData: T, reason: string): ApiResponse<T> {
     return {
       success: true,
       data: mockData,
-      message: 'Using mock data (backend not available)',
+      message: `Using mock messaging data (${reason})`,
     };
+  }
+
+  private async useBackendOrMock<T>(backendCall: BackendCall<T>, mockData: T): Promise<ApiResponse<T>> {
+    if (USE_MOCK_MESSAGING) {
+      return this.buildMockResponse(mockData, 'mock mode enabled');
+    }
+
+    try {
+      const response = await backendCall();
+      if (response.success || !this.shouldFallbackToMock(response.error)) {
+        return response;
+      }
+
+      return this.buildMockResponse(mockData, response.error || 'backend unavailable');
+    } catch (error: any) {
+      const message = typeof error?.message === 'string' ? error.message : 'unknown error';
+      if (this.shouldFallbackToMock(message)) {
+        return this.buildMockResponse(mockData, message);
+      }
+
+      return {
+        success: false,
+        error: message,
+      };
+    }
   }
 
   async listConversations(): Promise<ApiResponse<ConversationListResponse>> {

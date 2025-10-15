@@ -12,6 +12,14 @@ const { dbManager } = require('../config/database');
 
 // Rate Limiting Middleware
 const createRateLimiter = (windowMs, max, message, keyGenerator = null) => {
+  // Check if rate limiting should be disabled in development
+  const disableRateLimit = process.env.DISABLE_RATE_LIMIT === 'true';
+  
+  if (disableRateLimit) {
+    console.log('🚦 Rate limiting DISABLED for development');
+    return (req, res, next) => next(); // No-op middleware
+  }
+
   return rateLimit({
     windowMs,
     max,
@@ -33,7 +41,9 @@ const createRateLimiter = (windowMs, max, message, keyGenerator = null) => {
         ip: req.ip,
         user: req.user?.id || 'anonymous',
         endpoint: req.path,
-        method: req.method
+        method: req.method,
+        limit: max,
+        window: `${windowMs / 1000}s`
       });
       
       res.status(429).json({
@@ -48,40 +58,46 @@ const createRateLimiter = (windowMs, max, message, keyGenerator = null) => {
   });
 };
 
+// Development vs Production rate limits
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+// Log rate limiting configuration
+console.log(`🚦 Rate Limiting Mode: ${isDevelopment ? 'DEVELOPMENT (Relaxed)' : 'PRODUCTION (Strict)'}`);
+
 // Different rate limiters for different endpoints
 const rateLimiters = {
   // General API rate limiting
   general: createRateLimiter(
     15 * 60 * 1000, // 15 minutes
-    100, // 100 requests per window
+    isDevelopment ? 1000 : 100, // 1000 requests in dev, 100 in prod
     'Too many requests from this IP, please try again later.'
   ),
 
-  // Authentication endpoints (stricter)
+  // Authentication endpoints (stricter in production, relaxed in dev)
   auth: createRateLimiter(
     15 * 60 * 1000, // 15 minutes
-    5, // 5 requests per window
+    isDevelopment ? 100 : 5, // 100 requests in dev, 5 in prod
     'Too many authentication attempts, please try again later.'
   ),
 
   // API endpoints (moderate)
   api: createRateLimiter(
     1 * 60 * 1000, // 1 minute
-    60, // 60 requests per minute
+    isDevelopment ? 500 : 60, // 500 requests in dev, 60 in prod
     'API rate limit exceeded, please slow down.'
   ),
 
   // Search endpoints (higher limit)
   search: createRateLimiter(
     1 * 60 * 1000, // 1 minute
-    30, // 30 searches per minute
+    isDevelopment ? 200 : 30, // 200 searches in dev, 30 in prod
     'Search rate limit exceeded, please wait before searching again.'
   ),
 
-  // Upload endpoints (very strict)
+  // Upload endpoints (very strict in production, relaxed in dev)
   upload: createRateLimiter(
     5 * 60 * 1000, // 5 minutes
-    10, // 10 uploads per 5 minutes
+    isDevelopment ? 50 : 10, // 50 uploads in dev, 10 in prod
     'Upload rate limit exceeded, please wait before uploading again.'
   )
 };

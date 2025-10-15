@@ -9,7 +9,8 @@ class OtpController {
         phone: Joi.string().required().messages({
           'any.required': 'Phone number is required'
         }),
-        purpose: Joi.string().valid('LOGIN', 'REGISTRATION').default('LOGIN')
+        purpose: Joi.string().valid('LOGIN', 'REGISTRATION').default('LOGIN'),
+        userType: Joi.string().valid('CONSUMER', 'VENDOR').default('CONSUMER')
       });
 
       const { error, value } = schema.validate(req.body || {});
@@ -21,11 +22,11 @@ class OtpController {
         });
       }
 
-      const { phone, purpose } = value;
+      const { phone, purpose, userType } = value;
       const ipAddress = req.ip || req.connection?.remoteAddress || '';
       const userAgent = req.get('User-Agent') || '';
 
-      const result = await otpService.sendOtp(phone, purpose, ipAddress, userAgent);
+      const result = await otpService.sendOtp(phone, purpose, ipAddress, userAgent, userType);
 
       if (!result.success) {
         const statusCode = this.mapErrorToStatus(result.code);
@@ -55,7 +56,8 @@ class OtpController {
         }),
         code: Joi.string().required().messages({
           'any.required': 'Verification code is required'
-        })
+        }),
+        userType: Joi.string().valid('CONSUMER', 'VENDOR').default('CONSUMER')
       });
 
       const { error, value } = schema.validate(req.body || {});
@@ -67,11 +69,11 @@ class OtpController {
         });
       }
 
-      const { phone, code } = value;
+      const { phone, code, userType } = value;
       const ipAddress = req.ip || req.connection?.remoteAddress || '';
       const userAgent = req.get('User-Agent') || '';
 
-      const result = await otpService.verifyOtp(phone, code, ipAddress, userAgent);
+      const result = await otpService.verifyOtp(phone, code, ipAddress, userAgent, userType);
 
       if (!result.success) {
         const statusCode = this.mapErrorToStatus(result.code);
