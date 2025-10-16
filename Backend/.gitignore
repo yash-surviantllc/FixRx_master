@@ -10,10 +10,23 @@
 .env.test
 .env.production
 .env.staging
+env
+.env*
 
 # Environment variable backups
 .env.backup
 .env.*.backup
+
+# API Keys and Configuration Files
+config/keys.js
+config/production.js
+config/development.js
+config/secrets.json
+twilio-config.json
+sendgrid-config.json
+aws-config.json
+firebase-config.json
+google-oauth-config.json
 
 # =============================================================================
 # NODE.JS
@@ -294,11 +307,11 @@ apm/
 # TEMPORARY TEST FILES
 # =============================================================================
 # Test files that should not be committed
-test-*.js
-test-*.html
-test-*.json
-debug-*.js
-temp-*.js
+#test-*.js
+#test-*.html
+#test-*.json
+#debug-*.js
+#temp-*.js
 
 # Magic link test files
 *magic-link-test*
@@ -327,6 +340,10 @@ temp-*.js
 # Temporary setup files
 setup-temp/
 temp-setup/
+cleanup-*.js
+test-*.js
+check-*.js
+run-*-temp.js
 
 # User uploaded content
 user-uploads/
@@ -345,6 +362,19 @@ benchmark.log
 # Development database dumps
 dev-db-dump.sql
 test-db-dump.sql
+
+# Sensitive configuration backups
+config.backup
+config.*.backup
+
+# Database connection strings
+database-url.txt
+connection-string.txt
+
+# JWT secrets and tokens
+jwt-secret.txt
+token-*.txt
+auth-tokens.json
 
 # =============================================================================
 # NOTES

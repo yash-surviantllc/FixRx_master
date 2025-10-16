@@ -1,716 +1,479 @@
-# FixRx - Client-Vendor Management Platform
-
-<div align="center">
-
-![FixRx Logo](https://via.placeholder.com/200x80/007AFF/FFFFFF?text=FixRx)
-
-**A comprehensive platform connecting consumers with trusted contractors and service providers**
-
-[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
-[![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-yellow.svg)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
-[![React](https://img.shields.io/badge/React-18+-61DAFB.svg)](https://reactjs.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-336791.svg)](https://www.postgresql.org/)
-[![SendGrid](https://img.shields.io/badge/SendGrid-Email-blue.svg)](https://sendgrid.com/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
-[Features](#-features) • [Tech Stack](#-tech-stack) • [Quick Start](#-quick-start) • [Configuration](#-configuration) • [Contributing](#-contributing)
-
-</div>
-
----
-
-##  **Table of Contents**
-
-- [Overview](#-overview)
-- [Features](#-features)
-- [Tech Stack](#-tech-stack)
-- [Architecture](#-architecture)
-- [Quick Start](#-quick-start)
-- [Installation](#-installation)
-- [Configuration](#-configuration)
-- [API Documentation](#-api-documentation)
-- [Testing](#-testing)
-- [Deployment](#-deployment)
-- [Contributing](#-contributing)
-- [License](#-license)
-
----
+# FixRx Platform
 
 ## Overview
 
-FixRx is a modern client-vendor management platform that connects consumers with trusted contractors and service providers. Built with enterprise-grade architecture, it supports 1,000+ concurrent users with sub-500ms API response times.
+FixRx is a comprehensive client-vendor management platform that connects consumers with trusted contractors and service providers. The platform provides a complete ecosystem for service discovery, communication, and relationship management.
 
-### **Key Capabilities**
-- **Magic Link Authentication** (Passwordless email authentication)
-- **Google OAuth Integration** (Production-ready social authentication)
-- **Geographic Search** with proximity-based vendor discovery
-- **Four-Category Rating System** (Cost, Quality, Timeliness, Professionalism)
-- **Contact Integration** with phone directory sync
-- 📧 **Bulk Invitations** via SMS and Email
-- **Real-time Analytics** and reporting
-- **Enterprise Security** with role-based access control
+## System Architecture
 
----
-
-## Features
-
-### **For Consumers**
-- **Smart Vendor Search** - Find contractors by location, service type, and ratings
-- **Contact Management** - Import and sync phone directory contacts
-- 📧 **Bulk Invitations** - Invite multiple contacts via SMS/Email
-- ⭐ **Rating & Reviews** - Rate vendors across four key categories
-- 📱 **Mobile-First Design** - Responsive interface for all devices
-- **Real-time Notifications** - Stay updated on vendor responses
-
-### **For Vendors**
-- **Business Profiles** - Comprehensive business information and portfolios
-- **Location Services** - Geographic visibility for local customers
-- **Analytics Dashboard** - Track ratings, reviews, and performance
-- **Connection Management** - Manage customer relationships
-- **Photo Uploads** - Showcase work with image galleries
-- **Reputation System** - Build trust through verified ratings
-
-### **Platform Features**
-- **Passwordless Authentication** - Magic link email authentication
-- **Social Login** - Google OAuth (requires production deployment)
-- **RESTful API** - Comprehensive API for third-party integrations
-- **Scalable Architecture** - Supports 1,000+ concurrent users
-- **High Performance** - <500ms API response times
-- **Data Security** - GDPR compliant with encryption at rest
-- **Cross-Platform** - Web and mobile applications
-
----
-
-## Tech Stack
-
-### **Backend**
-- **Runtime**: Node.js 18+
-- **Framework**: Express.js with JavaScript
-- **Database**: PostgreSQL 14+ with raw SQL queries
-- **Caching**: Redis 7+ (optional)
-- **Authentication**: Magic Links + Google OAuth + JWT
-- **Email Service**: SendGrid for magic link delivery
-- **SMS Service**: Twilio for notifications
-- **Validation**: Joi schema validation
-- **Testing**: Jest + Supertest
-
-### **Frontend**
-- **Framework**: React 18+ with TypeScript
-- **Build Tool**: Vite
-- **State Management**: Zustand
-- **Styling**: Tailwind CSS + Radix UI
-- **HTTP Client**: Axios with interceptors
-- **Animations**: Framer Motion
-- **Icons**: Lucide React
-
-### **Third-Party Services**
-- **SMS**: Twilio (for notifications and invitations)
-- **Email**: SendGrid (for magic link authentication)
-- **Push Notifications**: Firebase (optional)
-- **File Storage**: AWS S3 (for uploads)
-- **License Verification**: Verdata/Mesh (optional)
-- **Social Auth**: Google OAuth (production deployment required)
-
-### **DevOps & Deployment**
-- **Containerization**: Docker + Docker Compose
-- **CI/CD**: GitHub Actions
-- **Monitoring**: Winston logging
-- **Documentation**: OpenAPI/Swagger
-- **Testing**: Automated test suites
-
----
-
-## Architecture
-
-```mermaid
-graph TB
-    subgraph "Frontend Layer"
-        A[React App] --> B[Zustand Store]
-        B --> C[API Client]
-    end
-    
-    subgraph "API Gateway"
-        C --> D[Express.js Server]
-        D --> E[Authentication Middleware]
-        D --> F[Rate Limiting]
-    end
-    
-    subgraph "Business Logic"
-        E --> G[Controllers]
-        G --> H[Services]
-        H --> I[Validation]
-    end
-    
-    subgraph "Data Layer"
-        H --> J[PostgreSQL]
-        H --> K[Redis Cache]
-        H --> L[File Storage]
-    end
-    
-    subgraph "External Services"
-        H --> M[Auth0]
-        H --> N[Twilio SMS]
-        H --> O[SendGrid Email]
-        H --> P[Firebase Push]
-    end
-```
-
----
+- **Backend API**: Node.js/Express REST API with PostgreSQL database
+- **Web Application**: React-based web interface 
+- **Mobile Application**: React Native for iOS and Android
+- **Real-time Features**: WebSocket support for messaging and notifications
+- **Authentication**: OTP-based phone authentication and magic link email authentication
 
 ## Quick Start
 
-### **Prerequisites**
-- Node.js 18+ and npm
-- PostgreSQL 14+
-- Redis 7+ (optional)
-- Git
-- SendGrid account (for magic link authentication)
-- Twilio account (optional, for SMS notifications)
-
-### **1. Clone Repository**
 ```bash
-git clone https://github.com/yourusername/fixrx.git
-cd fixrx
-```
+# Clone repository
+git clone https://github.com/yash-surviantllc/FixRx_master.git
+cd FixRx_master
 
-### **2. Backend Setup**
-```bash
-# Navigate to backend directory
+# Setup Backend
 cd Backend
-
-# Install dependencies
 npm install
+cp .env.example .env    # Configure your environment variables
+npm run migrate         # Setup database tables
+npm run dev            # Start backend server on port 3000
 
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your configuration (see Configuration section below)
+# Setup Frontend (new terminal)
+cd ../Frontend
+npm install
+npm run dev            # Start web application on port 3001
 
-# Set up database (PostgreSQL must be running)
-node database/create-tables.js
-
-# Start development server
-npm run dev
+# Setup Mobile App (new terminal)
+cd ../FixRxMobile
+npm install
+npx react-native run-android  # or run-ios for iOS
 ```
 
-### **3. Frontend Setup**
+## Features
+
+### Core Functionality
+
+- **OTP Authentication**: Phone-based authentication with SMS verification
+- **Magic Link Authentication**: Passwordless email authentication via SendGrid
+- **Contact Management**: Import and sync contacts from mobile devices
+- **Invitation System**: Send invitations to contacts via SMS (Twilio) or Email
+- **Messaging System**: Real-time chat between consumers and vendors
+- **User Profiles**: Comprehensive profile management for consumers and vendors
+- **Search & Discovery**: Find vendors by location, service type, and ratings
+
+### Technical Features
+
+- **RESTful API**: Well-documented endpoints for all platform features
+- **Database Migrations**: Automated schema management with version control
+- **Session Management**: JWT-based authentication with refresh tokens
+- **Rate Limiting**: Protection against API abuse
+- **CORS Support**: Configured for web and mobile applications
+- **Error Handling**: Comprehensive error logging and user-friendly responses
+
+## Technology Stack
+
+### Backend
+- **Node.js 18+** with Express.js framework
+- **PostgreSQL 14+** for primary database
+- **Redis** for caching and session management (optional)
+- **JWT** for authentication tokens
+- **bcrypt** for password hashing
+- **Joi** for input validation
+
+### Frontend Web
+- **React 18+** with TypeScript
+- **Vite** for build tooling
+- **Axios** for API communication
+- **Tailwind CSS** for styling
+
+### Mobile Application
+- **React Native** for cross-platform mobile development
+- **React Navigation** for navigation
+- **AsyncStorage** for local data persistence
+
+### Third-Party Services
+- **SendGrid** for email delivery (magic links, notifications)
+- **Twilio** for SMS services (OTP codes, invitations)
+- **Google OAuth** for social authentication (production only)
+
+## Project Structure
+
+```
+FixRx_master/
+├── Backend/
+│   ├── src/
+│   │   ├── controllers/     # Request handlers
+│   │   ├── services/        # Business logic
+│   │   ├── routes/          # API endpoints
+│   │   ├── middleware/      # Express middleware
+│   │   ├── config/          # Configuration
+│   │   └── utils/           # Utilities
+│   ├── database/
+│   │   └── migrations/      # SQL migration files
+│   └── package.json
+├── Frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── services/
+│   └── package.json
+└── FixRxMobile/
+    ├── src/
+    │   ├── screens/
+    │   ├── components/
+    │   └── services/
+    ├── ios/
+    └── android/
+```
+
+## Prerequisites
+
+- Node.js 18.0.0 or higher
+- PostgreSQL 14.0 or higher
+- Redis 6.0 or higher (optional but recommended)
+- npm 8.0.0 or higher
+- Git
+
+## Installation
+
+### 1. Database Setup
+
+#### Install PostgreSQL
+- **Windows**: Download from https://www.postgresql.org/download/windows/
+- **macOS**: `brew install postgresql@14`
+- **Linux**: `sudo apt install postgresql postgresql-contrib`
+
+#### Create Database
+```sql
+psql -U postgres
+CREATE DATABASE fixrx_db;
+CREATE USER fixrx_user WITH PASSWORD 'your_password';
+GRANT ALL PRIVILEGES ON DATABASE fixrx_db TO fixrx_user;
+\c fixrx_db
+GRANT ALL ON SCHEMA public TO fixrx_user;
+\q
+```
+
+### 2. Backend Setup
+
 ```bash
-# Navigate to frontend directory (new terminal)
-cd Frontend
-
-# Install dependencies
+cd Backend
 npm install
 
-# Set up environment variables
-cp .env.example .env.local
-# Edit .env.local with your configuration
+# Create .env file with your configuration
+cp .env.example .env
+
+# Run database migrations
+npm run migrate
 
 # Start development server
 npm run dev
 ```
 
-### **4. Access Application**
-- **Frontend**: http://localhost:3001
-- **Backend API**: http://localhost:3000
-- **Health Check**: http://localhost:3000/health
+### 3. Frontend Setup
 
----
+```bash
+cd Frontend
+npm install
 
-## ⚙️ **Installation**
+# Create environment file
+echo "VITE_API_BASE_URL=http://localhost:3000/api/v1" > .env.local
 
-### **Development Environment**
+# Start development server
+npm run dev
+```
 
-1. **Clone and Install**
-   ```bash
-   git clone https://github.com/yourusername/fixrx.git
-   cd fixrx
-   npm run install:all  # Installs both backend and frontend dependencies
-   ```
+### 4. Mobile App Setup
 
-2. **Database Setup**
-   ```bash
-   # Start PostgreSQL and Redis
-   docker-compose up -d postgres redis
-   
-   # Run database migrations
-   cd backend
-   npx prisma migrate dev
-   ```
+```bash
+cd FixRxMobile
+npm install
 
-3. **Environment Configuration**
-   ```bash
-   # Backend environment
-   cp backend/.env.example backend/.env
-   
-   # Frontend environment
-   cp frontend/.env.example frontend/.env.local
-   ```
+# iOS only (macOS)
+cd ios && pod install && cd ..
 
-4. **Start Development Servers**
-   ```bash
-   npm run dev  # Starts both backend and frontend
-   ```
+# Create .env file
+echo "API_BASE_URL=http://localhost:3000/api/v1" > .env
 
-### **Production Deployment**
+# Run the app
+npx react-native start
+npx react-native run-android  # or run-ios
+```
 
-1. **Using Docker**
-   ```bash
-   docker-compose up -d
-   ```
+## Environment Configuration
 
-2. **Manual Deployment**
-   ```bash
-   # Build frontend
-   cd frontend && npm run build
-   
-   # Build backend
-   cd backend && npm run build
-   
-   # Start production server
-   npm run start:prod
-   ```
+### Backend (.env)
 
----
-
-## Configuration
-
-### **Backend Environment Variables**
-
-#### **Required for Basic Functionality**
 ```env
 # Server Configuration
 NODE_ENV=development
 PORT=3000
+API_VERSION=v1
 
-# Database (PostgreSQL)
+# Database Configuration
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=fixrx_db
 DB_USER=fixrx_user
 DB_PASSWORD=your_secure_password
 
-# JWT Authentication
+# JWT Configuration
 JWT_SECRET=your_jwt_secret_minimum_32_characters_long
+JWT_EXPIRES_IN=7d
 JWT_REFRESH_SECRET=your_refresh_secret_minimum_32_characters_long
+JWT_REFRESH_EXPIRES_IN=30d
 
-# Email Service (SendGrid) - REQUIRED for Magic Links
+# OTP Configuration (Development)
+OTP_DEV_MODE=true
+OTP_DEV_CODE=123456
+OTP_CODE_LENGTH=6
+OTP_EXPIRY_MINUTES=10
+
+# Email Service (SendGrid)
 SENDGRID_API_KEY=SG.your_sendgrid_api_key
 SENDGRID_FROM_EMAIL=noreply@yourdomain.com
 SENDGRID_FROM_NAME=FixRx
 
-# Frontend URL
-FRONTEND_URL=http://localhost:3001
-CORS_ORIGINS=http://localhost:3000,http://localhost:3001
-```
-
-#### **Optional Services**
-```env
-# SMS Service (Twilio) - For notifications
+# SMS Service (Twilio)
 TWILIO_ACCOUNT_SID=ACyour_twilio_account_sid
 TWILIO_AUTH_TOKEN=your_twilio_auth_token
 TWILIO_PHONE_NUMBER=+1234567890
 
-# Google OAuth - REQUIRES PRODUCTION DEPLOYMENT
-GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your_google_client_secret
+# Frontend URLs
+FRONTEND_URL=http://localhost:3001
+API_BASE_URL=http://localhost:3000/api/v1
+CORS_ORIGINS=http://localhost:3000,http://localhost:3001
 
-# Redis (Optional - for caching)
-REDIS_URL=redis://localhost:6379
+# Redis (Optional)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
 
-# AWS S3 (Optional - for file uploads)
-AWS_ACCESS_KEY_ID=your_aws_access_key
-AWS_SECRET_ACCESS_KEY=your_aws_secret_key
-AWS_S3_BUCKET=your-bucket-name
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=1000
+DISABLE_RATE_LIMIT=false
 ```
 
-### **Frontend Environment Variables**
-```env
-# API Configuration
-VITE_API_BASE_URL=http://localhost:3000/api/v1
+## API Documentation
 
-# Google OAuth (Production only)
-VITE_GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+### Base URL
+- Development: `http://localhost:3000/api/v1`
+- Production: `https://api.yourdomain.com/api/v1`
 
-# Optional Services
-VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
-```
+### Authentication Endpoints
 
-### **📧 SendGrid Setup (Required for Magic Links)**
-
-1. **Create SendGrid Account**
-   - Go to [SendGrid](https://sendgrid.com/)
-   - Sign up for a free account (100 emails/day)
-
-2. **Create API Key**
-   ```bash
-   # In SendGrid Dashboard:
-   # Settings → API Keys → Create API Key
-   # Choose "Restricted Access"
-   # Enable "Mail Send" permissions
-   ```
-
-3. **Verify Sender Identity**
-   ```bash
-   # In SendGrid Dashboard:
-   # Settings → Sender Authentication
-   # Verify your sender email address
-   ```
-
-4. **Add to Environment**
-   ```env
-   SENDGRID_API_KEY=SG.your_actual_api_key_here
-   SENDGRID_FROM_EMAIL=your_verified_email@domain.com
-   SENDGRID_FROM_NAME=FixRx
-   ```
-
-### Twilio Setup (Optional for SMS)
-
-1. **Create Twilio Account**
-   - Go to [Twilio](https://www.twilio.com/)
-   - Sign up for account (free trial available)
-
-2. **Get Credentials**
-   ```bash
-   # In Twilio Console:
-   # Account → Account Info
-   # Copy Account SID and Auth Token
-   ```
-
-3. **Get Phone Number**
-   ```bash
-   # In Twilio Console:
-   # Phone Numbers → Manage → Buy a number
-   # Choose a number for SMS sending
-   ```
-
-4. **Add to Environment**
-   ```env
-   TWILIO_ACCOUNT_SID=ACyour_account_sid_here
-   TWILIO_AUTH_TOKEN=your_auth_token_here
-   TWILIO_PHONE_NUMBER=+1234567890
-   ```
-
-### Google OAuth Setup (Production Only)
-
-⚠️ **Important**: Google OAuth requires your app to be in production mode. It won't work in development/testing mode.
-
-1. **Create Google Cloud Project**
-   - Go to [Google Cloud Console](https://console.developers.google.com/)
-   - Create new project or select existing
-
-2. **Enable Google+ API**
-   ```bash
-   # In Google Cloud Console:
-   # APIs & Services → Library
-   # Search for "Google+ API" and enable it
-   ```
-
-3. **Create OAuth Credentials**
-   ```bash
-   # APIs & Services → Credentials
-   # Create Credentials → OAuth client ID
-   # Application type: Web application
-   ```
-
-4. **Configure OAuth Consent Screen**
-   ```bash
-   # Fill required fields:
-   # - App name: FixRx
-   # - User support email: your-email@domain.com
-   # - Application home page: https://yourdomain.com
-   # - Privacy policy: https://yourdomain.com/privacy
-   # - Terms of service: https://yourdomain.com/terms
-   ```
-
-5. **Publish Your App**
-   ```bash
-   # OAuth consent screen → PUBLISH APP
-   # This is REQUIRED for OAuth to work
-   ```
-
-6. **Add to Environment**
-   ```env
-   GOOGLE_CLIENT_ID=your_client_id.apps.googleusercontent.com
-   GOOGLE_CLIENT_SECRET=your_client_secret
-   ```
-
----
-
-## 📚 **API Documentation**
-
-### **Magic Link Authentication**
+#### OTP Authentication
 ```http
-POST /api/v1/auth/magic-link/send     # Send magic link
-POST /api/v1/auth/magic-link/verify   # Verify magic link
+POST /auth/otp/send
+Body: { "phone": "+1234567890", "purpose": "LOGIN" }
+
+POST /auth/otp/verify
+Body: { "phone": "+1234567890", "code": "123456" }
 ```
 
-### **Google OAuth Authentication**
+#### Magic Link Authentication
 ```http
-POST /api/v1/auth/oauth/google/verify # Verify Google ID token
+POST /auth/magic-link/send
+Body: { "email": "user@example.com" }
+
+POST /auth/magic-link/verify
+Body: { "token": "magic_link_token" }
 ```
 
-### **Authentication Endpoints**
+### Contact Management
 ```http
-POST /api/v1/auth/register          # User registration
-POST /api/v1/auth/login             # User login
-POST /api/v1/auth/social/login      # Social login
-POST /api/v1/auth/refresh           # Token refresh
-POST /api/v1/auth/logout            # User logout
+POST /contacts/import
+Headers: Authorization: Bearer {token}
+Body: { "contacts": [{ "name": "John", "phone": "+1234567890" }] }
+
+GET /contacts
+Headers: Authorization: Bearer {token}
 ```
 
-### **Vendor Management**
+### Invitations
 ```http
-GET    /api/v1/vendors/search       # Search vendors
-GET    /api/v1/vendors/profile      # Get vendor profile
-POST   /api/v1/vendors/profile      # Create vendor profile
-PUT    /api/v1/vendors/profile      # Update vendor profile
+POST /invitations
+Headers: Authorization: Bearer {token}
+Body: {
+  "recipientName": "John Doe",
+  "recipientPhone": "+1234567890",
+  "invitationType": "FRIEND"
+}
+
+GET /invitations/sent
+Headers: Authorization: Bearer {token}
 ```
 
-### **Consumer Management**
+### Messaging
 ```http
-GET    /api/v1/consumers/profile    # Get consumer profile
-POST   /api/v1/consumers/profile    # Create consumer profile
-PUT    /api/v1/consumers/profile    # Update consumer profile
+GET /messages
+Headers: Authorization: Bearer {token}
+
+POST /messages/{conversationId}/messages
+Headers: Authorization: Bearer {token}
+Body: { "content": "Hello", "messageType": "text" }
 ```
-
-### **Rating System**
-```http
-GET    /api/v1/ratings              # Get ratings
-POST   /api/v1/ratings              # Create rating
-PUT    /api/v1/ratings/:id          # Update rating
-DELETE /api/v1/ratings/:id          # Delete rating
-```
-
-### **Contact Management**
-```http
-GET    /api/v1/contacts             # Get contacts
-POST   /api/v1/contacts/import      # Import contacts
-POST   /api/v1/contacts/sync        # Sync contacts
-```
-
-### **Invitation System**
-```http
-POST   /api/v1/invitations          # Send invitation
-POST   /api/v1/invitations/bulk     # Send bulk invitations
-GET    /api/v1/invitations/sent     # Get sent invitations
-GET    /api/v1/invitations/received # Get received invitations
-```
-
-**📖 Full API Documentation**: [API Docs](./docs/api.md)
-
----
 
 ## Testing
 
-### **Backend Testing**
+### Backend Tests
 ```bash
-cd backend
-
-# Run all tests
-npm test
-
-# Run tests with coverage
-npm run test:coverage
-
-# Run specific test suite
-npm run test:auth
-npm run test:vendors
-npm run test:ratings
+cd Backend
+npm test                # Run all tests
+npm run test:coverage   # With coverage report
 ```
 
-### **Frontend Testing**
+### API Testing
 ```bash
-cd frontend
+# Test OTP send
+curl -X POST http://localhost:3000/api/v1/auth/otp/send \
+  -H "Content-Type: application/json" \
+  -d '{"phone": "+1234567890", "purpose": "LOGIN"}'
 
-# Run component tests
-npm test
-
-# Run E2E tests
-npm run test:e2e
-
-# Run tests in watch mode
-npm run test:watch
+# Test OTP verify (dev mode uses 123456)
+curl -X POST http://localhost:3000/api/v1/auth/otp/verify \
+  -H "Content-Type: application/json" \
+  -d '{"phone": "+1234567890", "code": "123456"}'
 ```
 
-### **Integration Testing**
-```bash
-# Run full integration test suite
-npm run test:integration
+## Database Management
 
-# Test specific API endpoints
-npm run test:api
+### Run Migrations
+```bash
+cd Backend
+npm run migrate
 ```
 
-### **Performance Testing**
+### Seed Data
 ```bash
-# Load testing (1000+ concurrent users)
-npm run test:load
-
-# API response time testing
-npm run test:performance
+npm run seed
 ```
 
----
+### Reset Database
+```bash
+# Drop and recreate
+psql -U postgres -c "DROP DATABASE IF EXISTS fixrx_db"
+psql -U postgres -c "CREATE DATABASE fixrx_db"
+
+# Re-run migrations
+npm run migrate
+```
 
 ## Deployment
 
-### **Docker Deployment**
-```bash
-# Build and start all services
-docker-compose up -d
+### Using Docker
+```yaml
+# docker-compose.yml
+version: '3.8'
+services:
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_DB: fixrx_db
+      POSTGRES_USER: fixrx_user
+      POSTGRES_PASSWORD: secure_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
 
-# Scale services
-docker-compose up -d --scale api=3
+  backend:
+    build: ./Backend
+    environment:
+      - NODE_ENV=production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
 
-# View logs
-docker-compose logs -f
+volumes:
+  postgres_data:
 ```
 
-### **Production Checklist**
-- [ ] Environment variables configured
-- [ ] Database migrations applied
-- [ ] SSL certificates installed
-- [ ] CDN configured for static assets
-- [ ] Monitoring and logging set up
-- [ ] Backup strategy implemented
-- [ ] Load balancer configured
-- [ ] Health checks enabled
+Run: `docker-compose up -d`
 
-### **Monitoring**
-- **Health Check**: `GET /health`
-- **Metrics**: `GET /metrics`
-- **Logs**: Structured logging with Winston
-- **Alerts**: Configure alerts for critical errors
+### Manual Deployment
 
----
-
-## Performance Metrics
-
-### **Current Performance**
-- **API Response Time**: <500ms (requirement met)
-- **Concurrent Users**: 1,000+ supported
-- **Database Queries**: Optimized with indexing
-- **Caching**: Redis-based caching layer
-- **File Upload**: 5MB limit with compression
-
-### **Load Testing Results**
-```
-Concurrent Users: 1000
-Average Response Time: 245ms
-95th Percentile: 450ms
-99th Percentile: 680ms
-Error Rate: <0.1%
-Throughput: 2,500 requests/second
-```
-
----
-
-## Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-### **Development Workflow**
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### **Code Standards**
-- TypeScript strict mode
-- ESLint + Prettier formatting
-- Comprehensive test coverage
-- Clear commit messages
-- Documentation updates
-
----
+1. **Setup Server** (Ubuntu 20.04+ recommended)
+2. **Install Dependencies**
+   ```bash
+   curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+   sudo apt-get install -y nodejs postgresql
+   ```
+3. **Clone and Setup**
+   ```bash
+   git clone https://github.com/yash-surviantllc/FixRx_master.git
+   cd FixRx_master/Backend
+   npm ci --production
+   ```
+4. **Configure Environment** (production values)
+5. **Run with PM2**
+   ```bash
+   npm install -g pm2
+   pm2 start src/server.js --name fixrx-backend
+   pm2 save
+   pm2 startup
+   ```
 
 ## Troubleshooting
 
-### **Common Issues**
-
-**Backend won't start**
-```bash
-# Check if ports are available
-lsof -i :3000
-lsof -i :5432  # PostgreSQL
-lsof -i :6379  # Redis
-
-# Restart services
-docker-compose restart postgres redis
-```
-
-**Database connection issues**
+### Database Connection Failed
 ```bash
 # Check PostgreSQL status
-docker-compose ps postgres
+sudo systemctl status postgresql
 
-# View database logs
-docker-compose logs postgres
-
-# Reset database
-npx prisma migrate reset
+# Start if stopped
+sudo systemctl start postgresql
 ```
 
-**Authentication not working**
-- Verify Auth0 configuration
-- Check JWT secret in environment
-- Ensure CORS origins are correct
+### Port Already in Use
+```bash
+# Find process using port
+lsof -i :3000
 
----
+# Kill process
+kill -9 [PID]
+```
 
-## 📄 **License**
+### Migration Failed
+```sql
+-- As superuser
+psql -U postgres -d fixrx_db
+GRANT ALL ON SCHEMA public TO fixrx_user;
+```
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+### OTP Not Working
+1. Check Twilio credentials in .env
+2. Verify phone format includes country code (+1234567890)
+3. In development, ensure `OTP_DEV_MODE=true`
 
----
+### CORS Issues
+1. Add frontend URL to `CORS_ORIGINS` in .env
+2. Restart backend server
 
-## 👥 **Team**
+## Important Notes
 
-- **Project Lead**: [Your Name](https://github.com/yourusername)
-- **Backend Developer**: [Developer Name](https://github.com/developer)
-- **Frontend Developer**: [Developer Name](https://github.com/frontend-dev)
-- **DevOps Engineer**: [DevOps Name](https://github.com/devops)
+### Contact Permissions
+The contacts permission popup (iOS/Android) is handled entirely by the frontend/mobile app. The backend only receives and processes contact data after user grants permission on their device.
 
----
+### Development vs Production
+- **Development**: OTP code is always "123456" when `OTP_DEV_MODE=true`
+- **Production**: Real SMS codes via Twilio, real magic links via SendGrid
+
+### Security
+- Never commit `.env` files
+- Use strong JWT secrets (minimum 32 characters)
+- Enable rate limiting in production
+- Use HTTPS in production
+
+## Documentation
+
+- **Full Setup Guide**: See `SETUP_DOCUMENTATION.md`
+- **Project Documentation**: See `PROJECT_DOCUMENTATION.md`
+- **API Collection**: Import `Backend/FixRx-API-Collection.postman_collection.json` into Postman
 
 ## Support
 
-- **Documentation**: [docs.fixrx.com](https://docs.fixrx.com)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/fixrx/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/fixrx/discussions)
-- **Email**: support@fixrx.com
+For issues or questions:
+1. Check the troubleshooting section
+2. Review documentation files
+3. Check GitHub issues
+4. Contact the development team
 
----
+## License
 
-## Roadmap
+This project is proprietary software. All rights reserved.
 
-### Phase 1 (Current)
-- [x] Authentication system
-- [x] Vendor/Consumer profiles
-- [x] Geographic search
-- [x] Rating system
-- [x] Contact management
-- [x] Invitation system
+## Version
 
-### Phase 2 (Completed)
-- [x] Mobile app (React Native)
-- [x] Advanced analytics
-- [x] Push notifications
-- [x] Performance optimization
-- [x] Real-time monitoring
-
-### Phase 3 (Planned)
-- [ ] Multi-language support
-- [ ] Advanced reporting
-- [ ] API marketplace
-- [ ] White-label solutions
-- [ ] Enterprise features
-
----
-  
-  <div align="center">
-  **Built by the FixRx Team**
-
-  [Star us on GitHub](https://github.com/yash-surviantllc/FixRx_master) • [Report Bug](https://github.com/yash-surviantllc/FixRx_master/issues) • [Request Feature](https://github.com/yash-surviantllc/FixRx_master/issues)
-
-  </div>
+Current Version: 1.4.0
+Last Updated: October 2024

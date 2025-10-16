@@ -1,14 +1,41 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# FixRx Mobile - React Native .gitignore
 
-# dependencies
+# =============================================================================
+# ENVIRONMENT AND SECRETS - NEVER COMMIT THESE
+# =============================================================================
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+.env*.local
+env
+.env*
+
+# API Configuration Files
+config/api-keys.js
+config/secrets.json
+config/firebase-config.json
+config/google-config.json
+
+# =============================================================================
+# DEPENDENCIES
+# =============================================================================
 node_modules/
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+lerna-debug.log*
 
-# Expo
+# =============================================================================
+# EXPO AND REACT NATIVE
+# =============================================================================
 .expo/
 dist/
 web-build/
+.expo-shared/
 
-# Native
+# Native builds
 .kotlin/
 *.orig.*
 *.jks
@@ -16,25 +43,92 @@ web-build/
 *.p12
 *.key
 *.mobileprovision
+*.keystore
 
-# Metro
+# =============================================================================
+# METRO AND BUILD TOOLS
+# =============================================================================
 .metro-health-check*
+.metro/
 
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
+# =============================================================================
+# OPERATING SYSTEM FILES
+# =============================================================================
 # macOS
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
 
-# typescript
+# =============================================================================
+# DEVELOPMENT TOOLS
+# =============================================================================
+# TypeScript
 *.tsbuildinfo
 
-# generated native folders
-/ios
-/android
+# ESLint cache
+.eslintcache
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =============================================================================
+# LOGS AND TEMPORARY FILES
+# =============================================================================
+logs/
+*.log
+tmp/
+temp/
+
+# =============================================================================
+# NATIVE FOLDERS (if using bare workflow)
+# =============================================================================
+# Uncomment these if using bare React Native
+# /ios
+# /android
+
+# =============================================================================
+# SECURITY FILES
+# =============================================================================
+# SSL certificates
+*.crt
+*.csr
+*.pfx
+
+# Service account files
+service-account-*.json
+firebase-adminsdk-*.json
+google-services.json
+GoogleService-Info.plist
+
+# =============================================================================
+# TESTING AND COVERAGE
+# =============================================================================
+coverage/
+.nyc_output/
+test-results/
+
+# =============================================================================
+# CACHE DIRECTORIES
+# =============================================================================
+.cache/
+.yarn/
+.npm/
+
+# =============================================================================
+# CUSTOM IGNORES
+# =============================================================================
+# User uploads and media
+uploads/
+media/
+
+# Backup files
+*.backup
+*.bak
