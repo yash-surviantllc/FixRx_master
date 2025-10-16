@@ -472,8 +472,3 @@ For issues or questions:
 ## License
 
 This project is proprietary software. All rights reserved.
-
-## Version
-
-Current Version: 1.4.0
-Last Updated: October 2024
