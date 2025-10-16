@@ -36,9 +36,13 @@ router.get('/', (req, res) => {
 
   const appDeepLink = `fixrx://magic-link?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
   
+  // For Expo Go development, use exp:// scheme
   const expoDeepLink = process.env.NODE_ENV === 'development' 
     ? `exp://${req.get('host').split(':')[0]}:8081/--/magic-link?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`
     : null;
+  
+  // Use Expo link as primary in development
+  const primaryLink = expoDeepLink || appDeepLink;
 
   res.send(`
     <!DOCTYPE html>
@@ -97,21 +101,18 @@ router.get('/', (req, res) => {
     <body>
       <div class="container">
         <div class="logo">FixRx</div>
-        <h2>Opening FixRx App...</h2>
-        <div class="spinner"></div>
-        <p>If the app doesn't open automatically, click below:</p>
+        <h2>Almost There!</h2>
+        <p style="color: #475569; font-size: 16px; margin: 20px 0;">
+          ${expoDeepLink ? 'Click the button below to open the app in Expo Go:' : 'Click the button below to open the FixRx app:'}
+        </p>
         
-        <a href="${appDeepLink}" class="button" id="primaryLink">
-          Open FixRx App
+        <a href="${primaryLink}" class="button" id="primaryLink" style="font-size: 18px; padding: 16px 32px;">
+          ${expoDeepLink ? '📱 Open in Expo Go' : '📱 Open FixRx App'}
         </a>
         
-        <div id="fallback" style="display: none; margin-top: 20px;">
-          <p>App not opening? Try these alternatives:</p>
-          ${expoDeepLink ? `<a href="${expoDeepLink}" class="button secondary">
-            Open in Expo Go (Dev)
-          </a>` : ''}
-          <p style="margin-top: 15px; color: #6b7280; font-size: 14px;">
-            Make sure the FixRx app is installed on your device.
+        <div style="margin-top: 20px;">
+          <p style="color: #6b7280; font-size: 14px;">
+            ${expoDeepLink ? 'Make sure Expo Go is running on your device' : 'Make sure the FixRx app is installed'}
           </p>
         </div>
         
@@ -141,13 +142,13 @@ router.get('/', (req, res) => {
           }, 2000);
         }
         
+        // Don't auto-redirect in development (Expo Go) - it triggers permission dialogs
+        // User must manually click the button
+        ${expoDeepLink ? '// Development mode - manual click required' : `
         setTimeout(() => {
-          attemptDeepLink('${appDeepLink}');
+          attemptDeepLink('${primaryLink}');
         }, 500);
-        
-        setTimeout(() => {
-          document.getElementById('fallback').style.display = 'block';
-        }, 3000);
+        `}
         
         document.addEventListener('DOMContentLoaded', function() {
           const primaryLink = document.getElementById('primaryLink');

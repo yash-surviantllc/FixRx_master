@@ -3,8 +3,10 @@
  * Handles magic link verification when user clicks email link
  */
 
-import { Linking } from 'react-native';
+import { Linking, Alert } from 'react-native';
 import { magicLinkAuthService } from '../services/magicLinkAuthService';
+import { navigationRef } from '../navigation/navigationRef';
+import CrashPrevention from './crashPrevention';
 
 export interface DeepLinkParams {
   token?: string;
@@ -13,7 +15,20 @@ export interface DeepLinkParams {
 }
 
 class DeepLinkHandler {
+  private static instance: DeepLinkHandler;
+  private lastProcessedUrl: string | null = null;
+  private processingTimeout: NodeJS.Timeout | null = null;
   private listeners: Array<(params: DeepLinkParams) => void> = [];
+  private isVerifying: boolean = false;
+
+  private constructor() {}
+  
+  static getInstance(): DeepLinkHandler {
+    if (!DeepLinkHandler.instance) {
+      DeepLinkHandler.instance = new DeepLinkHandler();
+    }
+    return DeepLinkHandler.instance;
+  }
 
   initialize() {
     // Handle app launch from deep link
@@ -35,13 +50,40 @@ class DeepLinkHandler {
 
   private async handleDeepLink(url: string) {
     try {
+      console.log('Deep link received:', url);
+      
+      // Debounce: Ignore duplicate URLs within 2 seconds
+      if (this.lastProcessedUrl === url) {
+        console.log('Duplicate deep link ignored (debounced)');
+        return;
+      }
+      
+      this.lastProcessedUrl = url;
+      
+      // Clear previous timeout
+      if (this.processingTimeout) {
+        clearTimeout(this.processingTimeout);
+      }
+      
+      // Reset debounce after 2 seconds
+      this.processingTimeout = setTimeout(() => {
+        this.lastProcessedUrl = null;
+      }, 2000);
+      
       const params = this.parseDeepLink(url);
+      console.log('Parsed params:', params);
       
       if (params.action === 'magic-link' && params.token && params.email) {
+        console.log('Valid magic link detected, verifying...');
         await this.handleMagicLinkVerification(params.token, params.email);
+      } else {
+        console.log('Not a magic link or missing params');
       }
 
-      this.listeners.forEach(listener => listener(params));
+      // Notify any listeners (currently none, but kept for future extensibility)
+      if (this.listeners.length > 0) {
+        this.listeners.forEach(listener => listener(params));
+      }
 
     } catch (error) {
       console.error('Deep link handling error:', error);
@@ -107,30 +149,103 @@ class DeepLinkHandler {
   }
 
   private async handleMagicLinkVerification(token: string, email: string) {
-    try {
-      const result = await magicLinkAuthService.verifyMagicLink({ token, email });
-
-      if (result.success) {
-        return {
-          success: true,
-          user: result.data?.user,
-          isNewUser: result.data?.isNewUser,
-        };
-      } else {
-        console.error('Magic link verification failed:', result.message);
-        return {
-          success: false,
-          error: result.message,
-        };
-      }
-
-    } catch (error) {
-      console.error('Magic link verification error:', error);
-      return {
-        success: false,
-        error: 'Verification failed. Please try again.',
-      };
+    // Prevent multiple simultaneous verifications
+    if (this.isVerifying) {
+      console.log('Verification already in progress, skipping...');
+      return { success: false, error: 'Verification in progress' };
     }
+
+    this.isVerifying = true;
+    
+    return await CrashPrevention.safeMagicLinkVerification(
+      async () => {
+        console.log('Verifying magic link...', { email });
+        return await magicLinkAuthService.verifyMagicLink({ token, email });
+      },
+      (result) => {
+        // Success callback
+        console.log('Magic link verified successfully!', result.data);
+        
+        const user = result.data?.user;
+        const isNewUser = result.data?.isNewUser;
+
+        // Safe navigation with crash prevention
+        if (isNewUser || !user?.userType) {
+          CrashPrevention.safeNavigate(
+            () => {
+              if (navigationRef.current?.isReady()) {
+                navigationRef.current?.navigate('UserType' as never);
+              } else {
+                setTimeout(() => {
+                  if (navigationRef.current?.isReady()) {
+                    navigationRef.current?.navigate('UserType' as never);
+                  }
+                }, 1000);
+              }
+            },
+            'Welcome', // Fallback route
+            navigationRef
+          );
+        } else {
+          CrashPrevention.safeNavigate(
+            () => {
+              if (navigationRef.current?.isReady()) {
+                navigationRef.current?.navigate('MainTabs' as never);
+              } else {
+                setTimeout(() => {
+                  if (navigationRef.current?.isReady()) {
+                    navigationRef.current?.navigate('MainTabs' as never);
+                  }
+                }, 1000);
+              }
+            },
+            'Welcome', // Fallback route
+            navigationRef
+          );
+        }
+      },
+      async (error) => {
+        // Error callback
+        console.error('Magic link verification failed:', error);
+        
+        // Handle expired tokens with auto-retry
+        if (error?.code === 'TOKEN_EXPIRED' || error?.message?.includes('expired')) {
+          try {
+            console.log('🔄 Attempting auto-retry for expired token...');
+            const retryResult = await magicLinkAuthService.handleExpiredToken(email, 'REGISTRATION');
+            
+            Alert.alert(
+              'Link Expired',
+              retryResult.message,
+              [{ text: 'OK' }]
+            );
+            return;
+          } catch (retryError) {
+            console.error('Auto-retry failed:', retryError);
+          }
+        }
+        
+        // Don't show alert for other expected errors
+        const errorMessage = error?.message || '';
+        const isExpectedError = 
+          errorMessage.includes('already been used') ||
+          errorMessage.includes('Invalid') ||
+          error?.code === 'TOKEN_ALREADY_USED';
+        
+        if (!isExpectedError) {
+          Alert.alert(
+            'Verification Failed',
+            error?.message || 'Failed to verify magic link. Please try again.',
+            [{ text: 'OK' }]
+          );
+        }
+      }
+    ).finally(() => {
+      // Reset verification flag after a delay
+      setTimeout(() => {
+        this.isVerifying = false;
+      }, 3000);
+    });
   }
 
   addListener(listener: (params: DeepLinkParams) => void) {
@@ -155,7 +270,8 @@ class DeepLinkHandler {
     
     // In development, use custom scheme directly
     // In production, use HTTPS with domain that redirects to app
-    if (__DEV__) {
+    const isDev = typeof __DEV__ !== 'undefined' && __DEV__;
+    if (isDev) {
       return `${scheme}://magic-link?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
     }
     
@@ -164,5 +280,5 @@ class DeepLinkHandler {
   }
 }
 
-export const deepLinkHandler = new DeepLinkHandler();
+export const deepLinkHandler = DeepLinkHandler.getInstance();
 export default deepLinkHandler;

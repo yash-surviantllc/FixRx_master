@@ -41,7 +41,7 @@ const redisConfig = {
     connectTimeout: 10000,
     reconnectStrategy: (retries) => {
       if (retries > 10) {
-        console.log('❌ Too many retries on Redis. Connection Terminated');
+ console.log(' Too many retries on Redis. Connection Terminated'); 
         return new Error('Too many retries');
       }
       return Math.min(retries * 100, 5000);
@@ -77,7 +77,7 @@ class DatabaseManager {
       // Test PostgreSQL connection
       const client = await this.pgPool.connect();
       const result = await client.query('SELECT NOW() as current_time, version() as pg_version');
-      console.log('✅ PostgreSQL Connected:', {
+ console.log(' PostgreSQL Connected:', { 
         timestamp: result.rows[0].current_time,
         version: result.rows[0].pg_version.split(' ')[0],
         poolSize: pgConfig.max
@@ -98,7 +98,7 @@ class DatabaseManager {
         await this.redisClient.set('health_check', 'ok', { EX: 60 });
         const health = await this.redisClient.get('health_check');
         
-        console.log('✅ Redis Connected:', {
+ console.log(' Redis Connected:', { 
           host: redisConfig.socket.host,
           port: redisConfig.socket.port,
           db: redisConfig.database,
@@ -107,13 +107,13 @@ class DatabaseManager {
         
         this.isConnected = true;
       } catch (error) {
-        console.error('❌ Failed to connect to Redis:', error);
+ console.error(' Failed to connect to Redis:', error); 
         throw error;
       }
       const healthCheck = await this.redisClient.get('health_check');
       
       if (healthCheck === 'ok') {
-        console.log('✅ Redis Health Check: Passed');
+ console.log(' Redis Health Check: Passed'); 
       }
 
       this.isConnected = true;
@@ -129,7 +129,7 @@ class DatabaseManager {
       };
 
     } catch (error) {
-      console.error('❌ Database Initialization Failed:', error);
+ console.error(' Database Initialization Failed:', error); 
       throw error;
     }
   }
@@ -137,15 +137,15 @@ class DatabaseManager {
   setupMonitoring() {
     // PostgreSQL Pool Monitoring
     this.pgPool.on('connect', (client) => {
-      console.log('📊 PostgreSQL: New client connected');
+ console.log(' PostgreSQL: New client connected'); 
     });
 
     this.pgPool.on('remove', (client) => {
-      console.log('📊 PostgreSQL: Client removed from pool');
+ console.log(' PostgreSQL: Client removed from pool'); 
     });
 
     this.pgPool.on('error', (err, client) => {
-      console.error('❌ PostgreSQL Pool Error:', err);
+ console.error(' PostgreSQL Pool Error:', err); 
     });
 
     // Periodic health checks
@@ -157,11 +157,11 @@ class DatabaseManager {
           waitingCount: this.pgPool.waitingCount
         };
         
-        console.log('📊 PostgreSQL Pool Stats:', poolStats);
+ console.log(' PostgreSQL Pool Stats:', poolStats); 
         
         // Redis health check
         const redisInfo = await this.redisClient.info('memory');
-        console.log('📊 Redis Memory Usage:', redisInfo.split('\n')[1]);
+ console.log(' Redis Memory Usage:', redisInfo.split('\n')[1]); 
         
       } catch (error) {
       }
@@ -174,45 +174,45 @@ class DatabaseManager {
     if (!this.redisClient) return;
 
     this.redisClient.on('connect', () => {
-      console.log('🔄 Redis connection established');
+ console.log(' Redis connection established'); 
       this.redisReconnectAttempts = 0; // Reset counter on successful connection
     });
 
     this.redisClient.on('ready', () => {
-      console.log('✅ Redis client ready');
+ console.log(' Redis client ready'); 
       this.isConnected = true;
     });
 
     this.redisClient.on('error', (err) => {
-      console.error('❌ Redis Client Error:', err);
+ console.error(' Redis Client Error:', err); 
       this.isConnected = false;
       
       // Implement reconnection logic
       if (this.redisReconnectAttempts < this.maxReconnectAttempts) {
         const delay = Math.min(1000 * Math.pow(2, this.redisReconnectAttempts), 15000);
-        console.log(`⏳ Attempting to reconnect to Redis (${this.redisReconnectAttempts + 1}/${this.maxReconnectAttempts}) in ${delay}ms...`);
+ console.log(` Attempting to reconnect to Redis (${this.redisReconnectAttempts + 1}/${this.maxReconnectAttempts}) in ${delay}ms...`); 
         
         setTimeout(async () => {
           this.redisReconnectAttempts++;
           try {
             await this.redisClient.connect();
           } catch (reconnectError) {
-            console.error('❌ Redis reconnection failed:', reconnectError);
+ console.error(' Redis reconnection failed:', reconnectError); 
           }
         }, delay);
       } else {
-        console.error('❌ Max Redis reconnection attempts reached');
+ console.error(' Max Redis reconnection attempts reached'); 
         // Consider implementing a fallback mechanism here
       }
     });
 
     this.redisClient.on('end', () => {
-      console.log('🔌 Redis connection closed');
+ console.log(' Redis connection closed'); 
       this.isConnected = false;
     });
 
     this.redisClient.on('reconnecting', () => {
-      console.log('🔄 Redis reconnecting...');
+ console.log(' Redis reconnecting...'); 
     });
   }
 
@@ -228,7 +228,7 @@ class DatabaseManager {
       const options = ttl > 0 ? { EX: ttl } : undefined;
       return await this.redisClient.set(key, serialized, options);
     } catch (error) {
-      console.error('Redis setCache error:', error);
+ console.error('Redis setCache error:', error); 
       return false;
     }
   }
@@ -244,7 +244,7 @@ class DatabaseManager {
       if (!data) return null;
       return parseJson ? JSON.parse(data) : data;
     } catch (error) {
-      console.error('Redis getCache error:', error);
+ console.error('Redis getCache error:', error); 
       return null;
     }
   }
@@ -258,7 +258,7 @@ class DatabaseManager {
     try {
       return await this.redisClient.del(key) > 0;
     } catch (error) {
-      console.error('Redis deleteCache error:', error);
+ console.error('Redis deleteCache error:', error); 
       return false;
     }
   }
@@ -280,7 +280,7 @@ class DatabaseManager {
       }
       return true;
     } catch (error) {
-      console.error('Redis flushCache error:', error);
+ console.error('Redis flushCache error:', error); 
       return false;
     }
   }
@@ -291,10 +291,10 @@ class DatabaseManager {
     try {
       const res = await this.pgPool.query(text, params);
       const duration = Date.now() - start;
-      console.log('Executed query', { text, duration, rows: res.rowCount });
+ console.log('Executed query', { text, duration, rows: res.rowCount }); 
       return res;
     } catch (error) {
-      console.error('Query error', { error, query: text, params });
+ console.error('Query error', { error, query: text, params }); 
       throw error;
     }
   }
@@ -311,9 +311,9 @@ class DatabaseManager {
     if (this.pgPool) {
       try {
         await this.pgPool.end();
-        console.log('PostgreSQL connection pool closed');
+ console.log('PostgreSQL connection pool closed'); 
       } catch (error) {
-        console.error('Error closing PostgreSQL pool:', error);
+ console.error('Error closing PostgreSQL pool:', error); 
       }
     }
     
@@ -323,15 +323,15 @@ class DatabaseManager {
         this.redisClient.removeAllListeners();
         // Gracefully close the connection
         await this.redisClient.quit();
-        console.log('Redis connection closed gracefully');
+ console.log('Redis connection closed gracefully'); 
       } catch (error) {
-        console.error('Error closing Redis connection:', error);
+ console.error('Error closing Redis connection:', error); 
         // Forcefully disconnect if quit fails
         try {
           await this.redisClient.disconnect();
-          console.log('Redis connection force-closed');
+ console.log('Redis connection force-closed'); 
         } catch (e) {
-          console.error('Error force-closing Redis:', e);
+ console.error('Error force-closing Redis:', e); 
         }
       }
     }

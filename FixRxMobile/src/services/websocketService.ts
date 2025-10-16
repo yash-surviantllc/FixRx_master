@@ -41,78 +41,230 @@ class WebSocketService {
   private disabled = false;
 
   private config = {
-    url: process.env.EXPO_PUBLIC_WS_URL || 'http://localhost:3000',
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1000,
+    url: process.env.EXPO_PUBLIC_WS_URL || process.env.EXPO_PUBLIC_API_BASE_URL?.replace('/api/v1', '') || 'http://192.168.0.230:3000',
+    reconnectionAttempts: 3,
+    reconnectionDelay: 2000,
+    maxReconnectDelay: 10000,
+    timeout: 15000,
   };
 
-  connect = async (token?: string) => {
-    if (this.connected || this.reconnecting || this.disabled) {
-      return;
+  connect = async (token?: string): Promise<boolean> => {
+    // Skip if already connected or disabled
+    if (this.connected || this.disabled) {
+      return this.connected;
     }
 
+    // Skip if too many failures
     if (this.connectionFailures >= this.maxFailures) {
-      console.warn('🚫 WebSocket disabled after too many connection failures. App will work in offline mode.');
+      console.warn('WebSocket disabled after too many connection failures. App will work in offline mode.');
       this.disabled = true;
-      return;
+      return false;
+    }
+
+    // Skip if already trying to connect
+    if (this.reconnecting) {
+      console.log('WebSocket connection already in progress...');
+      return false;
     }
 
     this.reconnecting = true;
-    this.authToken = token || this.authToken || (await authService.getStoredToken());
-
-    if (!this.authToken) {
-      console.warn('⚠️ WebSocket connection skipped: no auth token available');
-      this.reconnecting = false;
-      return;
-    }
-
-    console.log(`🔌 Attempting WebSocket connection to: ${this.config.url} (attempt ${this.connectionFailures + 1}/${this.maxFailures})`);
-
+    
     try {
+      // Get auth token
+      this.authToken = token || this.authToken || (await authService.getStoredToken());
+
+      // In development, allow connection without token
+      if (!this.authToken) {
+        if (__DEV__) {
+          console.log('WebSocket connecting in development mode without token');
+        } else {
+          console.warn('WebSocket connection skipped: no auth token available');
+          this.reconnecting = false;
+          return false;
+        }
+      }
+
+      console.log(`Attempting WebSocket connection to: ${this.config.url} (attempt ${this.connectionFailures + 1}/${this.maxFailures})`);
+
+      // Create socket with robust configuration
       this.socket = io(this.config.url, {
-        transports: ['websocket', 'polling'], // Allow fallback to polling
-        auth: { token: this.authToken },
-        reconnectionAttempts: this.config.reconnectionAttempts,
-        reconnectionDelay: this.config.reconnectionDelay,
-        timeout: 10000, // 10 second timeout
-        forceNew: true, // Force new connection
+        transports: ['websocket', 'polling'],
+        auth: this.authToken ? { token: this.authToken } : {},
+        reconnection: false, // We'll handle reconnection manually
+        timeout: this.config.timeout,
+        forceNew: true,
+        autoConnect: false,
+        upgrade: true,
+        rememberUpgrade: false,
       });
 
+      // Register event listeners before connecting
       this.registerListeners();
+      
+      // Connect with promise-based timeout
+      const connected = await this.attemptConnection();
+      
+      if (connected) {
+        this.connectionFailures = 0; // Reset on successful connection
+        this.reconnecting = false;
+        return true;
+      } else {
+        throw new Error('Connection failed');
+      }
+      
     } catch (error) {
-      console.error('🔴 Failed to create WebSocket connection:', error);
+      console.error('WebSocket connection failed:', {
+        error: error instanceof Error ? error.message : String(error),
+        url: this.config.url,
+        attempt: this.connectionFailures + 1,
+        maxAttempts: this.maxFailures
+      });
+      
       this.connectionFailures++;
       this.reconnecting = false;
+      
+      // Clean up failed connection
+      this.cleanupConnection();
+      
+      // Schedule retry if not at max failures
+      if (this.connectionFailures < this.maxFailures) {
+        this.scheduleReconnect();
+      }
+      
+      return false;
     }
   };
 
-  disconnect = () => {
+  private async attemptConnection(): Promise<boolean> {
+    return new Promise((resolve) => {
+      if (!this.socket) {
+        resolve(false);
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        console.warn('WebSocket connection timeout');
+        resolve(false);
+      }, this.config.timeout);
+
+      const onConnect = () => {
+        clearTimeout(timeout);
+        console.log('WebSocket connected successfully');
+        this.connected = true;
+        this.safeEmit('connected', null);
+        resolve(true);
+      };
+
+      const onError = (error: any) => {
+        clearTimeout(timeout);
+        console.error('WebSocket connection error:', error);
+        resolve(false);
+      };
+
+      // Set up one-time listeners
+      this.socket.once('connect', onConnect);
+      this.socket.once('connect_error', onError);
+      this.socket.once('error', onError);
+
+      // Start the connection
+      this.socket.connect();
+    });
+  }
+
+  private cleanupConnection() {
     if (this.socket) {
+      this.socket.removeAllListeners();
       this.socket.disconnect();
       this.socket = null;
     }
     this.connected = false;
+  }
+
+  private scheduleReconnect() {
+    const delay = Math.min(
+      this.config.reconnectionDelay * Math.pow(2, this.connectionFailures - 1),
+      this.config.maxReconnectDelay
+    );
+    
+    console.log(`Scheduling WebSocket reconnect in ${delay}ms (attempt ${this.connectionFailures}/${this.maxFailures})`);
+    
+    setTimeout(() => {
+      if (!this.connected && !this.disabled) {
+        this.connect();
+      }
+    }, delay);
+  }
+
+  disconnect = () => {
+    console.log('Disconnecting WebSocket...');
+    this.cleanupConnection();
     this.reconnecting = false;
+    this.disabled = false; // Allow reconnection later
+    this.connectionFailures = 0; // Reset failure count
+  };
+
+  // Initialize WebSocket with optional connection
+  initialize = async (token?: string, autoConnect: boolean = true): Promise<void> => {
+    console.log('Initializing WebSocket service...', { 
+      url: this.config.url, 
+      autoConnect,
+      hasToken: !!token 
+    });
+
+    if (autoConnect) {
+      // Try to connect, but don't block if it fails
+      try {
+        await this.connect(token);
+      } catch (error) {
+        console.warn('Initial WebSocket connection failed, will retry later:', error);
+      }
+    }
+  };
+
+  // Get connection status
+  getStatus = () => ({
+    connected: this.connected,
+    reconnecting: this.reconnecting,
+    disabled: this.disabled,
+    failures: this.connectionFailures,
+    maxFailures: this.maxFailures,
+    url: this.config.url
+  });
+
+  // Enable WebSocket (reset disabled state)
+  enable = () => {
+    console.log('WebSocket service enabled');
+    this.disabled = false;
+    this.connectionFailures = 0;
+  };
+
+  // Force reconnect (useful for testing)
+  forceReconnect = async (token?: string): Promise<boolean> => {
+    console.log('Force reconnecting WebSocket...');
+    this.disconnect();
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Brief delay
+    return await this.connect(token);
   };
 
   private registerListeners() {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
-      console.log('✅ WebSocket connected successfully');
+      console.log('WebSocket connected successfully');
       this.connected = true;
       this.reconnecting = false;
       this.connectionFailures = 0; // Reset failure count on successful connection
-      this.emit('connected', null);
+      this.safeEmit('connected', null);
     });
 
     this.socket.on('disconnect', (reason) => {
+      console.log('WebSocket disconnected:', reason);
       this.connected = false;
-      this.emit('disconnected', { reason });
+      this.safeEmit('disconnected', { reason });
     });
 
     this.socket.on('connect_error', (error: any) => {
-      console.error('🔴 WebSocket connection error:', {
+      console.error('WebSocket connection error:', {
         message: error.message,
         description: error.description || 'No description',
         context: error.context || 'No context',
@@ -122,28 +274,53 @@ class WebSocketService {
       });
       this.connectionFailures++;
       this.reconnecting = false;
-      this.emit('error', error);
+      this.safeEmit('error', error);
     });
 
+    // Message handlers with error protection
     this.socket.on('message:new', (message: Message) => {
-      this.emit('message:new', message);
+      try {
+        this.safeEmit('message:new', message);
+      } catch (error) {
+        console.error('Error handling new message:', error);
+      }
     });
 
     this.socket.on('conversation:created', (conversation: Conversation) => {
-      this.emit('conversation:created', conversation);
+      try {
+        this.safeEmit('conversation:created', conversation);
+      } catch (error) {
+        console.error('Error handling conversation created:', error);
+      }
     });
 
     this.socket.on('conversation:read', (payload) => {
-      this.emit('conversation:read', payload);
+      try {
+        this.safeEmit('conversation:read', payload);
+      } catch (error) {
+        console.error('Error handling conversation read:', error);
+      }
     });
 
     this.socket.on('conversation:typing', (payload) => {
-      this.emit('conversation:typing', payload);
+      try {
+        this.safeEmit('conversation:typing', payload);
+      } catch (error) {
+        console.error('Error handling conversation typing:', error);
+      }
     });
 
     this.socket.io.on('reconnect_failed', () => {
       this.emit('reconnect:failed', null);
     });
+  }
+
+  private safeEmit(event: WebsocketEventName, data: any) {
+    try {
+      this.emit(event, data);
+    } catch (error) {
+      console.error(`Error emitting WebSocket event '${event}':`, error);
+    }
   }
 
   private emit(event: WebsocketEventName, data: any) {

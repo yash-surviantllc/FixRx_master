@@ -38,6 +38,19 @@ class MagicLinkController {
       const userAgent = req.get('User-Agent') || '';
       const ipAddress = req.ip || req.connection.remoteAddress || '';
 
+      // Development mode: Auto-reset user for testing
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          console.log('🔄 Attempting auto-reset for:', email.toLowerCase().trim(), purpose);
+          await magicLinkService.autoResetUserForTesting(email.toLowerCase().trim(), purpose);
+          console.log('✅ Auto-reset completed successfully');
+        } catch (resetError) {
+          console.error('❌ Auto-reset failed:', resetError.message);
+          logger.warn('Auto-reset failed, continuing anyway:', resetError.message);
+          // Continue anyway - don't let auto-reset failure block magic link sending
+        }
+      }
+
       // Send magic link
       const result = await magicLinkService.sendMagicLink(
         email.toLowerCase().trim(),
@@ -47,14 +60,21 @@ class MagicLinkController {
       );
 
       if (!result.success) {
+        console.error('❌ Magic link send failed:', {
+          email: email.toLowerCase().trim(),
+          purpose,
+          error: result.message,
+          code: result.code
+        });
+        
         return res.status(400).json({
           success: false,
           message: result.message,
-          code: 'MAGIC_LINK_ERROR'
+          code: result.code || 'MAGIC_LINK_ERROR'
         });
       }
 
-      logger.info(`Magic link requested`, {
+ logger.info(`Magic link requested`, { 
         email: email.toLowerCase().trim(),
         purpose,
         ipAddress,
@@ -72,7 +92,7 @@ class MagicLinkController {
       });
 
     } catch (error) {
-      logger.error('Error in sendMagicLink controller:', error);
+ logger.error('Error in sendMagicLink controller:', error); 
       res.status(500).json({
         success: false,
         message: 'Internal server error. Please try again.',
@@ -140,7 +160,7 @@ class MagicLinkController {
         });
       }
 
-      logger.info(`Magic link verified successfully`, {
+ logger.info(`Magic link verified successfully`, { 
         userId: result.user.id,
         email: result.user.email,
         isNewUser: result.isNewUser,
@@ -167,7 +187,7 @@ class MagicLinkController {
       });
 
     } catch (error) {
-      logger.error('Error in verifyMagicLink controller:', error);
+ logger.error('Error in verifyMagicLink controller:', error); 
       res.status(500).json({
         success: false,
         message: 'Internal server error. Please try again.',
@@ -225,7 +245,7 @@ class MagicLinkController {
       });
 
     } catch (error) {
-      logger.error('Error in getMagicLinkStatus controller:', error);
+ logger.error('Error in getMagicLinkStatus controller:', error); 
       res.status(500).json({
         success: false,
         message: 'Internal server error',
@@ -258,7 +278,7 @@ class MagicLinkController {
       });
 
     } catch (error) {
-      logger.error('Error in magic link health check:', error);
+ logger.error('Error in magic link health check:', error); 
       res.status(503).json({
         success: false,
         data: {
@@ -300,7 +320,7 @@ class MagicLinkController {
       });
 
     } catch (error) {
-      logger.error('Error in cleanupExpiredLinks controller:', error);
+ logger.error('Error in cleanupExpiredLinks controller:', error); 
       res.status(500).json({
         success: false,
         message: 'Internal server error',

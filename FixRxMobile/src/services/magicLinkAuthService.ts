@@ -48,12 +48,23 @@ class MagicLinkAuthService {
 
   constructor() {
     this.baseUrl = `${API_CONFIG.BASE_URL}/auth/magic-link`;
+    console.log('MagicLinkAuthService initialized:', { 
+      baseUrl: this.baseUrl,
+      apiConfigBaseUrl: API_CONFIG.BASE_URL,
+      envValue: process.env.EXPO_PUBLIC_API_BASE_URL
+    });
   }
 
   async sendMagicLink(request: MagicLinkSendRequest): Promise<MagicLinkAuthResponse> {
     try {
+      const url = `${this.baseUrl}/send`;
+      console.log('Sending magic link request:', { 
+        url,
+        email: request.email,
+        purpose: request.purpose || 'REGISTRATION'
+      });
 
-      const response = await fetch(`${this.baseUrl}/send`, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -64,7 +75,14 @@ class MagicLinkAuthService {
         }),
       });
 
+      console.log('Response received:', { 
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
       const data = await response.json();
+      console.log('Response data:', data); 
 
       if (!response.ok) {
         return {
@@ -81,16 +99,13 @@ class MagicLinkAuthService {
       };
 
     } catch (error) {
-      if (__DEV__) {
-        return {
-          success: true,
-          message: 'Magic link sent (development mode)',
-          data: {
-            expiresIn: 900,
-          },
-        };
-      }
-
+      console.error('Network error in sendMagicLink:', { 
+        error: error instanceof Error ? error.message : String(error),
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        stack: error instanceof Error ? error.stack : undefined,
+        url: `${this.baseUrl}/send`
+      });
+      
       return {
         success: false,
         message: 'Network error. Please check your connection.',
@@ -104,6 +119,11 @@ class MagicLinkAuthService {
     const baseDelay = 1000; // 1 second
     
     try {
+      console.log('Verifying magic link with backend...', { 
+        url: `${this.baseUrl}/verify`,
+        email: request.email,
+        tokenLength: request.token?.length
+      });
 
       const response = await fetch(`${this.baseUrl}/verify`, {
         method: 'POST',
@@ -116,9 +136,40 @@ class MagicLinkAuthService {
         }),
       });
 
+      console.log('Response status:', response.status, response.statusText); 
       const data = await response.json();
+      console.log('Response data:', data); 
 
       if (!response.ok) {
+        console.error('Verification failed:', { 
+          status: response.status,
+          code: data.code,
+          message: data.message
+        });
+        
+        // Auto-retry for expired tokens in development
+        if ((data.code === 'TOKEN_EXPIRED' || data.message?.includes('expired')) && __DEV__ && retryCount === 0) {
+          console.log('🔄 Token expired, auto-generating fresh link...');
+          
+          try {
+            // Automatically send a new magic link
+            const freshLinkResult = await this.sendMagicLink({ 
+              email: request.email, 
+              purpose: 'REGISTRATION' // Default to registration for testing
+            });
+            
+            if (freshLinkResult.success) {
+              return {
+                success: false,
+                message: 'Your link expired. A fresh magic link has been sent to your email automatically.',
+                code: 'FRESH_LINK_SENT'
+              };
+            }
+          } catch (autoRetryError) {
+            console.error('Auto-retry failed:', autoRetryError);
+          }
+        }
+        
         if (data.code === 'VERIFICATION_RATE_LIMIT_EXCEEDED' && retryCount < maxRetries) {
           const delay = baseDelay * Math.pow(2, retryCount);
           const retryAfter = data.retryAfter ? data.retryAfter * 1000 : delay;
@@ -146,8 +197,17 @@ class MagicLinkAuthService {
       };
 
     } catch (error) {
+      console.error('Network error during verification:', error); 
+      
+      // Don't retry if token is already used or invalid
+      const errorMessage = (error as any)?.message || '';
+      if (errorMessage.includes('already been used') || errorMessage.includes('expired') || errorMessage.includes('Invalid')) {
+        throw error;
+      }
+      
       if (retryCount < maxRetries && this.isNetworkError(error)) {
         const delay = baseDelay * Math.pow(2, retryCount);
+        console.log(`Retrying in ${delay}ms... (attempt ${retryCount + 1}/${maxRetries})`); 
         
         await new Promise(resolve => setTimeout(resolve, delay));
         return this.verifyMagicLink(request, retryCount + 1);
@@ -185,16 +245,58 @@ class MagicLinkAuthService {
     }
   }
 
-  private getErrorMessage(code: string, defaultMessage: string): string {
-    const errorMessages: Record<string, string> = {
-      'TOKEN_EXPIRED': 'This magic link has expired. Please request a new one.',
-      'TOKEN_ALREADY_USED': 'This magic link has already been used. Please request a new one.',
-      'INVALID_TOKEN': 'Invalid magic link. Please check your email and try again.',
-      'VERIFICATION_RATE_LIMIT_EXCEEDED': 'Too many attempts. Please wait a moment before trying again.',
-      'RATE_LIMIT_EXCEEDED': 'Too many requests. Please wait before requesting another magic link.',
-    };
-    
-    return errorMessages[code] || defaultMessage;
+  async handleExpiredToken(email: string, purpose: 'LOGIN' | 'REGISTRATION' = 'REGISTRATION'): Promise<MagicLinkAuthResponse> {
+    try {
+      console.log(' Token expired, automatically requesting new magic link...');
+      
+      // Automatically send a new magic link
+      const newLinkResult = await this.sendMagicLink({ email, purpose });
+      
+      if (newLinkResult.success) {
+        return {
+          success: false,
+          message: 'Your previous link expired. A new magic link has been sent to your email.',
+          code: 'NEW_LINK_SENT'
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Link expired and failed to send new one. Please try again.',
+          code: 'AUTO_RETRY_FAILED'
+        };
+      }
+    } catch (error) {
+      console.error('Failed to auto-send new magic link:', error);
+      return {
+        success: false,
+        message: 'Link expired. Please request a new magic link manually.',
+        code: 'TOKEN_EXPIRED'
+      };
+    }
+  }
+
+  private getErrorMessage(code?: string, fallback?: string): string {
+    switch (code) {
+      case 'RATE_LIMIT_EXCEEDED':
+        return 'Too many requests. Please wait a moment before trying again.';
+      case 'USER_ALREADY_EXISTS':
+        return 'An account already exists with this email. Please use the login option.';
+      case 'USER_NOT_FOUND':
+        return 'No account found with this email. Please register first.';
+      case 'NETWORK_ERROR':
+        return 'Network error. Please check your connection and try again.';
+      case 'TOKEN_EXPIRED':
+      case 'TOKEN_INVALID':
+        return 'This magic link has expired. A new one has been sent to your email.';
+      case 'TOKEN_ALREADY_USED':
+        return 'This magic link has already been used. Please check your email for a new one.';
+      case 'NEW_LINK_SENT':
+        return 'Your previous link expired. A new magic link has been sent to your email.';
+      case 'AUTO_RETRY_FAILED':
+        return 'Link expired and failed to send new one. Please try again.';
+      default:
+        return fallback || 'An unexpected error occurred. Please try again.';
+    }
   }
 
   private isNetworkError(error: any): boolean {
@@ -211,7 +313,7 @@ class MagicLinkAuthService {
       
       return !!(token && user);
     } catch (error) {
-      console.error('Auth check error:', error);
+ console.error('Auth check error:', error); 
       return false;
     }
   }
@@ -221,7 +323,7 @@ class MagicLinkAuthService {
       const userJson = await AsyncStorage.getItem(this.storageKeys.user);
       return userJson ? JSON.parse(userJson) : null;
     } catch (error) {
-      console.error('Get user error:', error);
+ console.error('Get user error:', error); 
       return null;
     }
   }
@@ -230,7 +332,7 @@ class MagicLinkAuthService {
     try {
       return await AsyncStorage.getItem(this.storageKeys.token);
     } catch (error) {
-      console.error('Get token error:', error);
+ console.error('Get token error:', error); 
       return null;
     }
   }
@@ -243,7 +345,7 @@ class MagicLinkAuthService {
         this.storageKeys.refreshToken,
       ]);
     } catch (error) {
-      console.error('Logout error:', error);
+ console.error('Logout error:', error); 
     }
   }
 
@@ -254,7 +356,7 @@ class MagicLinkAuthService {
         [this.storageKeys.user, JSON.stringify(user)],
       ]);
     } catch (error) {
-      console.error('Store auth data error:', error);
+ console.error('Store auth data error:', error); 
       throw error;
     }
   }
@@ -273,7 +375,7 @@ class MagicLinkAuthService {
       const data = await response.json();
       return data.success === true;
     } catch (error) {
-      console.error('Health check failed:', error);
+ console.error('Health check failed:', error); 
       return false;
     }
   }

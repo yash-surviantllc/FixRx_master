@@ -19,6 +19,28 @@
 
 ---
 
+## IMPORTANT: Start Here After Fresh Clone
+
+**This repository has been audited. Before running the app:**
+
+1. **Read Critical Issues:** `ISSUES_SUMMARY.md` (5 critical issues found)
+2. **Run Quick Fix:** Execute `QUICK_FIX.bat` to auto-fix most issues
+3. **Follow Setup Guide:** `FIX_CRITICAL_ISSUES.md` for step-by-step instructions
+4. **Full Audit Report:** `COMPREHENSIVE_AUDIT_REPORT.md` for complete analysis
+
+**Quick Start (After Fixes):**
+```bash
+# Terminal 1: Backend
+cd Backend
+npm run dev
+
+# Terminal 2: Mobile
+cd FixRxMobile
+npm start
+```
+
+---
+
 ##  **Table of Contents**
 
 - [Overview](#-overview)

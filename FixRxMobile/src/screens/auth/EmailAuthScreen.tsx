@@ -26,6 +26,7 @@ const EmailAuthScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [isValid, setIsValid] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
 
@@ -55,8 +56,13 @@ const EmailAuthScreen: React.FC = () => {
   useEffect(() => {
     const valid = emailRegex.test(email);
     setIsValid(valid);
-    setHasError(email.length > 0 && !valid);
-  }, [email]);
+    // Only show error if field was focused and then blurred
+    if (!isFocused && email.length > 0) {
+      setHasError(!valid);
+    } else {
+      setHasError(false);
+    }
+  }, [email, isFocused]);
 
   const handleSendLink = async () => {
     if (!isValid || isLoading) {
@@ -67,21 +73,28 @@ const EmailAuthScreen: React.FC = () => {
       setIsLoading(true);
       setHasError(false);
 
-      const response = await authService.sendMagicLink(email, 'REGISTRATION');
+      const response = await authService.sendMagicLink(email);
+ console.log('Magic link response:', response);
 
       if (!response.success) {
-        console.error('Magic link send failed:', response.error);
+ console.error('Failed to send magic link:', response.message);
+ console.error('Full response:', response);
         setHasError(true);
+        setErrorMessage(response.message || 'Failed to send magic link. Please try again.');
         return;
       }
+      
+      // Clear any previous errors
+      setHasError(false);
+      setErrorMessage('');
 
-      console.log('Magic link sent to:', email);
-      setUserEmail(email);
       navigation.navigate('EmailConfirmation', { email } as { email: string });
+      setUserEmail(email);
 
     } catch (error) {
-      console.error('Magic link send error:', error);
+ console.error('Magic link send error:', error);
       setHasError(true);
+      setErrorMessage('Network error. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -96,7 +109,7 @@ const EmailAuthScreen: React.FC = () => {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
       <ScrollView
@@ -172,7 +185,7 @@ const EmailAuthScreen: React.FC = () => {
 
             {hasError && (
               <Text style={styles.errorText}>
-                Please enter a valid email address
+                {errorMessage || 'Please enter a valid email address'}
               </Text>
             )}
           </Animated.View>

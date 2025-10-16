@@ -43,7 +43,7 @@ class FixRxApplication {
 
   async initialize() {
     try {
-      console.log('Initializing FixRx Application...');
+ console.log('Initializing FixRx Application...'); 
 
       // Initialize core services
       await this.initializeServices();
@@ -61,7 +61,7 @@ class FixRxApplication {
       this.setupErrorHandling();
 
       this.isInitialized = true;
-      console.log('FixRx Application Initialized Successfully');
+ console.log('FixRx Application Initialized Successfully'); 
 
       return {
         initialized: true,
@@ -76,13 +76,13 @@ class FixRxApplication {
       };
 
     } catch (error) {
-      console.error('FixRx Application Initialization Failed:', error);
+ console.error('FixRx Application Initialization Failed:', error); 
       throw error;
     }
   }
 
   async initializeServices() {
-    console.log('Initializing Services...');
+ console.log('Initializing Services...'); 
 
     // Initialize Database Manager (PostgreSQL + Redis)
     await dbManager.initialize();
@@ -99,11 +99,11 @@ class FixRxApplication {
     // Initialize Monitoring Service
     await monitoringService.initialize();
 
-    console.log('All Services Initialized');
+ console.log('All Services Initialized'); 
   }
 
   setupMiddleware() {
-    console.log('Setting up Middleware Stack...');
+ console.log('Setting up Middleware Stack...'); 
 
     // Health check (before other middleware)
     this.app.use(healthCheck);
@@ -131,11 +131,11 @@ class FixRxApplication {
     this.app.use('/api/v1', rateLimiters.api);
     this.app.use('/', rateLimiters.general);
 
-    console.log('Middleware Stack Configured');
+ console.log('Middleware Stack Configured'); 
   }
 
   setupRoutes() {
-    console.log('Setting up Routes...');
+ console.log('Setting up Routes...'); 
 
     // API Routes
     this.setupAuthRoutes();
@@ -152,7 +152,7 @@ class FixRxApplication {
     this.setupMobileAppRoutes();
     this.setupPaymentRoutes();
 
-    console.log('Routes Configured');
+ console.log('Routes Configured'); 
   }
 
   setupAuthRoutes() {
@@ -410,7 +410,7 @@ class FixRxApplication {
         });
 
       } catch (error) {
-        console.error('Vendor search error:', error);
+ console.error('Vendor search error:', error); 
         res.status(500).json({
           success: false,
           error: {
@@ -457,7 +457,7 @@ class FixRxApplication {
         });
 
       } catch (error) {
-        console.error('Nearby search error:', error);
+ console.error('Nearby search error:', error); 
         res.status(500).json({
           success: false,
           error: {
@@ -615,12 +615,12 @@ class FixRxApplication {
 
   setupMobileAppRoutes() {
     try {
-      console.log('📱 Setting up Mobile App Routes...');
+ console.log(' Setting up Mobile App Routes...'); 
       const mobileAppRoutes = require('./routes/mobileAppRoutes');
       this.app.use('/api/v1', mobileAppRoutes); // Mount at /api/v1
-      console.log('✅ Mobile App Routes Configured');
+ console.log(' Mobile App Routes Configured'); 
     } catch (error) {
-      console.error('❌ Failed to setup mobile app routes:', error);
+ console.error(' Failed to setup mobile app routes:', error); 
       throw error; // Re-throw to prevent app start with misconfigured routes
     }
   }
@@ -630,7 +630,7 @@ class FixRxApplication {
    */
   setupPaymentRoutes() {
     try {
-      console.log('💳 Setting up Payment Routes...');
+ console.log(' Setting up Payment Routes...'); 
       
       // Load payment routes
       const paymentRoutes = require('./routes/paymentRoutes');
@@ -639,9 +639,9 @@ class FixRxApplication {
       this.app.use('/api/v1/payments', rateLimiters.api);
       this.app.use('/api/v1/payments', paymentRoutes);
       
-      console.log('✅ Payment Routes Configured');
+ console.log(' Payment Routes Configured'); 
     } catch (error) {
-      console.error('❌ Failed to setup payment routes:', error);
+ console.error(' Failed to setup payment routes:', error); 
       throw error; // Re-throw to be caught by the error handler
     }
   }
@@ -651,12 +651,12 @@ class FixRxApplication {
    */
   setupWebRedirectRoutes() {
     try {
-      console.log('🌐 Setting up Web Redirect Routes...');
+ console.log(' Setting up Web Redirect Routes...'); 
       const webRedirectRoutes = require('./routes/webRedirectRoutes');
       this.app.use('/magic-link', webRedirectRoutes);
-      console.log('✅ Web Redirect Routes Configured');
+ console.log(' Web Redirect Routes Configured'); 
     } catch (error) {
-      console.error('❌ Failed to setup web redirect routes:', error);
+ console.error(' Failed to setup web redirect routes:', error); 
       throw error;
     }
   }
@@ -665,7 +665,7 @@ class FixRxApplication {
    * Setup error handling middleware
    */
   setupErrorHandling() {
-    console.log('⚙️  Setting up Error Handling...');
+ console.log('️ Setting up Error Handling...'); 
     
     // 404 handler
     this.app.use(notFoundHandler);
@@ -673,7 +673,7 @@ class FixRxApplication {
     // Global error handler
     this.app.use(errorHandler);
     
-    console.log('✅ Error Handling Configured');
+ console.log(' Error Handling Configured'); 
   }
 
   async start(port = process.env.PORT || 3000) {
@@ -683,7 +683,7 @@ class FixRxApplication {
       }
 
       this.server = this.app.listen(port, () => {
-        console.log(`
+ console.log(` 
 FixRx Application Server Started
 ===========================================
 Architecture: ${process.env.NODE_ENV || 'development'}
@@ -702,7 +702,7 @@ Ready for Production Traffic!
       return this.server;
 
     } catch (error) {
-      console.error('Server Start Failed:', error);
+ console.error('Server Start Failed:', error); 
       throw error;
     }
   }
@@ -718,10 +718,10 @@ Ready for Production Traffic!
       await dbManager.close();
       socketManager.close();
 
-      console.log('FixRx Application Server Stopped');
+ console.log('FixRx Application Server Stopped'); 
 
     } catch (error) {
-      console.error('Server Stop Failed:', error);
+ console.error('Server Stop Failed:', error); 
     }
   }
 

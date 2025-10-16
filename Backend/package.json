@@ -15,7 +15,10 @@
     "lint:fix": "eslint src/ --fix",
     "build": "tsc",
     "migrate": "node src/scripts/migrate.js",
-    "seed": "node src/scripts/seed.js"
+    "seed": "node src/scripts/seed.js",
+    "reset-user": "node reset-test-user.js",
+    "fresh-link": "node generate-fresh-link.js",
+    "kill-port": "kill-port.bat"
   },
   "keywords": [
     "client-vendor",
@@ -51,6 +54,8 @@
     "pg": "^8.11.1",
     "redis": "^4.6.7",
     "sharp": "^0.32.1",
+    "socket.io": "^4.7.5",
+    "stripe": "^14.0.0",
     "twilio": "^4.23.0",
     "uuid": "^9.0.0",
     "winston": "^3.10.0"

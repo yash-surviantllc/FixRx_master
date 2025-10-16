@@ -13,17 +13,53 @@ class SocketManager {
       return this.io;
     }
 
+    const corsOptions = {
+      origin: (origin, callback) => {
+        // Allow all origins in development, or match the CORS_ORIGIN in production
+        if (process.env.NODE_ENV === 'development' || 
+            !process.env.CORS_ORIGIN || 
+            origin === process.env.CORS_ORIGIN) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
+      methods: ['GET', 'POST'],
+      credentials: true
+    };
+
     this.io = new Server(httpServer, {
-      cors: {
-        origin: process.env.CORS_ORIGIN || '*',
-        methods: ['GET', 'POST']
-      }
+      cors: corsOptions,
+      // Enable HTTP long-polling as a fallback
+      transports: ['websocket', 'polling']
+    });
+    
+    // Log WebSocket connection events
+    this.io.on('connection', (socket) => {
+      logger.info(`WebSocket connected: ${socket.id} (user: ${socket.data?.userId || 'unauthenticated'})`);
+      
+      socket.on('disconnect', (reason) => {
+        logger.info(`WebSocket disconnected: ${socket.id} - ${reason}`);
+      });
+      
+      socket.on('error', (error) => {
+        logger.error(`WebSocket error (${socket.id}):`, error);
+      });
     });
 
     this.io.use((socket, next) => {
       try {
         const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+        
+        // In development, allow connections without token for testing
         if (!token) {
+          if (process.env.NODE_ENV === 'development') {
+            socket.data = socket.data || {};
+            socket.data.userId = 'dev-user';
+            socket.join('user:dev-user');
+            logger.info('WebSocket: Development connection allowed without token');
+            return next();
+          }
           return next(new Error('AUTH_REQUIRED'));
         }
 

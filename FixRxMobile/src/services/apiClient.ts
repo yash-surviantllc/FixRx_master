@@ -12,12 +12,6 @@ export interface ApiResponse<T = any> {
   error?: string;
 }
 
-export interface ApiError {
-  message: string;
-  status?: number;
-  code?: string;
-}
-
 class ApiClient {
   private baseURL: string;
   private timeout: number;
@@ -25,7 +19,7 @@ class ApiClient {
 
   constructor() {
     this.baseURL = API_CONFIG.BASE_URL;
-    this.timeout = API_CONFIG.TIMEOUT;
+    this.timeout = API_CONFIG.TIMEOUT || 10000;
   }
 
   // Set authentication token
@@ -33,16 +27,11 @@ class ApiClient {
     this.authToken = token;
   }
 
-  // Get authentication token
-  getAuthToken(): string | null {
-    return this.authToken;
-  }
-
-  // Build headers
-  private buildHeaders(customHeaders: Record<string, string> = {}): Record<string, string> {
+  // Build headers for requests
+  private buildHeaders(additionalHeaders: Record<string, string> = {}): Record<string, string> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...customHeaders,
+      ...additionalHeaders,
     };
 
     if (this.authToken) {
