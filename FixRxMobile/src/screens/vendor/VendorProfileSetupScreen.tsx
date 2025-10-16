@@ -251,7 +251,7 @@ const VendorProfileSetupScreen: React.FC = () => {
   return (
     <KeyboardAvoidingView 
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {renderStepIndicator()}
       

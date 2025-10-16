@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React, { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
@@ -6,7 +6,12 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AppProvider } from './src/context/AppContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { navigationRef } from './src/navigation/navigationRef';
-import LoadingScreen from './src/components/LoadingScreen';
+import ErrorBoundary from './src/components/ErrorBoundary';
+import { sessionManager } from './src/utils/sessionManager';
+import CrashPrevention from './src/utils/crashPrevention';
+import { useWebSocket } from './src/hooks/useWebSocket';
+import WebSocketTester from './src/utils/websocketTester';
+import { webSocketAdapter } from './src/services/websocket/WebSocketAdapter';
 
 // Auth Screens
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -40,19 +45,45 @@ const Stack = createNativeStackNavigator();
 
 // Main App Component
 export default function App() {
+  // Initialize WebSocket (don't auto-connect to avoid connection issues)
+  const webSocket = useWebSocket(false);
+
+  // Initialize crash prevention and session manager
+  useEffect(() => {
+    // Initialize crash prevention systems
+    CrashPrevention.initialize();
+    
+    if (__DEV__) {
+      sessionManager.initializeDevSessionClearing();
+      
+      WebSocketTester.enableDevTools();
+      
+      (global as any).wsAdapter = {
+        switch: (impl: 'original' | 'enhanced') => {
+          webSocketAdapter.switchImplementation(impl);
+          console.log(`Switched to ${impl} implementation`);
+        },
+        status: () => console.log('WebSocket Status:', webSocketAdapter.getStatus()),
+        test: () => webSocketAdapter.connect(),
+        testBoth: () => webSocketAdapter.testBothImplementations(),
+      };
+      
+      // console.log('WebSocket Status:', webSocket.status);
+    }
+  }, [webSocket.status]);
+
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <AppProvider>
-          <NavigationContainer ref={navigationRef}>
-            <StatusBar style="auto" />
-            <Stack.Navigator 
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <AppProvider>
+            <NavigationContainer ref={navigationRef}>
+              <StatusBar style="auto" />
+              <Stack.Navigator 
             initialRouteName="Welcome"
             screenOptions={{
               headerShown: false,
-              animation: 'fade',
               gestureEnabled: true,
-              gestureDirection: 'horizontal',
             }}
           >
             {/* Auth Flow */}
@@ -64,70 +95,38 @@ export default function App() {
             <Stack.Screen 
               name="EmailAuth" 
               component={EmailAuthScreen} 
-              options={{
-                gestureEnabled: true,
-                animation: 'slide_from_right',
-              }}
             />
             <Stack.Screen 
               name="EmailConfirmation" 
               component={EmailConfirmationScreen} 
-              options={{
-                gestureEnabled: true,
-                animation: 'slide_from_right',
-              }}
             />
             <Stack.Screen 
               name="PhoneAuth" 
               component={PhoneAuthScreen} 
-              options={{
-                gestureEnabled: true,
-                animation: 'slide_from_right',
-              }}
             />
             <Stack.Screen 
               name="UserType" 
               component={UserTypeSelectionScreen} 
-              options={{
-                gestureEnabled: true,
-                animation: 'slide_from_right',
-              }}
             />
             
             {/* Consumer Onboarding */}
             <Stack.Screen 
               name="ConsumerProfile" 
               component={ConsumerProfileSetupScreen} 
-              options={{
-                gestureEnabled: true,
-                animation: 'slide_from_right',
-              }}
             />
             
             {/* Vendor Onboarding */}
             <Stack.Screen 
               name="VendorProfileSetup" 
               component={VendorProfileSetupScreen} 
-              options={{
-                gestureEnabled: true,
-                animation: 'slide_from_right',
-              }}
             />
             <Stack.Screen 
               name="VendorServiceSelection" 
               component={VendorServiceSelectionScreen} 
-              options={{
-                gestureEnabled: true,
-                animation: 'slide_from_right',
-              }}
             />
             <Stack.Screen 
               name="VendorPortfolioUpload" 
               component={VendorPortfolioUploadScreen} 
-              options={{
-                gestureEnabled: true,
-                animation: 'slide_from_right',
-              }}
             />
             
             {/* Main App */}
@@ -136,7 +135,6 @@ export default function App() {
               component={MainTabs} 
               options={{
                 gestureEnabled: false,
-                animation: 'fade',
               }}
             />
             
@@ -144,79 +142,47 @@ export default function App() {
             <Stack.Screen 
               name="ContactSelection" 
               component={ContactSelectionScreen} 
-              options={{
-                gestureEnabled: true,
-                animation: 'slide_from_right',
-              }}
             />
             <Stack.Screen 
               name="MessagePreview" 
               component={MessagePreviewScreen} 
-              options={{
-                gestureEnabled: true,
-                animation: 'slide_from_right',
-              }}
             />
             <Stack.Screen 
               name="InvitationSuccess" 
               component={InvitationSuccessScreen} 
               options={{
                 gestureEnabled: false,
-                animation: 'fade',
               }}
             />
             <Stack.Screen 
               name="ContractorProfile" 
               component={ContractorProfileScreen} 
-              options={{
-                gestureEnabled: true,
-                animation: 'slide_from_right',
-              }}
             />
             <Stack.Screen 
               name="Notifications" 
               component={NotificationsScreen} 
-              options={{
-                gestureEnabled: true,
-                animation: 'slide_from_right',
-              }}
             />
             <Stack.Screen 
               name="Messaging" 
               component={MessagingScreen} 
-              options={{
-                gestureEnabled: true,
-                animation: 'slide_from_right',
-              }}
             />
             <Stack.Screen 
               name="Rating" 
               component={RatingScreen} 
-              options={{
-                gestureEnabled: true,
-                animation: 'slide_from_right',
-              }}
             />
             <Stack.Screen 
               name="HelpCenter" 
               component={HelpCenterScreen} 
-              options={{
-                gestureEnabled: true,
-                animation: 'slide_from_right',
-              }}
             />
             <Stack.Screen 
               name="AccountSettings" 
               component={AccountSettingsScreen} 
-              options={{
-                gestureEnabled: true,
-                animation: 'slide_from_right',
-              }}
             />
             </Stack.Navigator>
           </NavigationContainer>
         </AppProvider>
       </ThemeProvider>
     </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

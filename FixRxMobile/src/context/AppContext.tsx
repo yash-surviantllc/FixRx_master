@@ -131,32 +131,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     };
 
-    const handleDeepLink = async (params: DeepLinkParams) => {
-      if (params.action === 'magic-link' && params.token && params.email) {
-        try {
-          setIsAuthLoading(true);
-          const result = await authService.verifyMagicLink(params.token, params.email);
-          if (result.success && result.data?.user) {
-            await handleAuthenticatedUser(result.data.user, {
-              isNewUser: result.data.isNewUser,
-            });
-          } else {
-            console.error('Magic link verification failed:', result.message);
-          }
-        } catch (error) {
-          console.error('Magic link verification error:', error);
-        } finally {
-          setIsAuthLoading(false);
-        }
-      }
-    };
-
+    // Deep link verification is now handled by deepLinkHandler itself
+    // No need for additional listener here
+    
     initializeAuth();
     cleanupLinking = deepLinkHandler.initialize();
-    removeListener = deepLinkHandler.addListener(handleDeepLink);
 
     return () => {
-      removeListener?.();
       cleanupLinking?.();
     };
   }, []);

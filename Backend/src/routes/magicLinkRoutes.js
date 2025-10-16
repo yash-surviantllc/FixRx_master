@@ -31,9 +31,16 @@ const magicLinkRateLimit = rateLimit({
     const email = req.body?.email || 'unknown';
     return `${req.ip}-${email}`;
   },
-  // Add custom headers for better debugging
-  onLimitReached: (req, res) => {
+  handler: (req, res) => {
     console.log(`Rate limit exceeded for magic link send: ${req.ip} - ${req.body?.email}`);
+    res.status(429).json({
+      success: false,
+      message: isDevelopment 
+        ? 'Development rate limit exceeded. Please wait 1 minute before trying again.'
+        : 'Too many magic link requests. Please try again in 15 minutes.',
+      code: 'RATE_LIMIT_EXCEEDED',
+      retryAfter: isDevelopment ? 60 : 900
+    });
   }
 });
 

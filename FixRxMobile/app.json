@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "scheme": "fixrx",
     "experiments": {
       "typedRoutes": false
@@ -30,8 +29,6 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.fixrx.mobile",
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
       "intentFilters": [
         {
           "action": "VIEW",

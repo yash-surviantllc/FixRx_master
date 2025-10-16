@@ -297,6 +297,33 @@ FixRxMobile/dist/
 *.dump
 
 # =============================================================================
+# TEMPORARY AND DEBUG FILES
+# =============================================================================
+# Temporary scripts and debug files
+*.ps1
+remove-emojis.js
+fix-user-type.js
+**/auto-reset-user.js
+**/check-schema.js
+**/fix-schema-*.js
+**/migrate-now.js
+
+# Documentation files (moved to wiki or separate docs)
+docs/ENVIRONMENT_SETUP_GUIDE.md
+docs/APP_STORE_DEPLOYMENT_GUIDE.md
+**/docs/USER_GUIDE_AND_MANUAL.md
+**/docs/THIRD_PARTY_INTEGRATION_GUIDES.md
+**/docs/DEPLOYMENT_AND_MAINTENANCE_GUIDELINES.md
+
+# Status and audit files
+*_STATUS.md
+*_REPORT.md
+*_CHECKLIST.md
+*_SUMMARY.md
+*_ISSUES.md
+*_FIX_*.md
+
+# =============================================================================
 # SECURITY AND CERTIFICATES
 # =============================================================================
 # SSL certificates

@@ -14,7 +14,10 @@ const { logger } = require('../utils/logger');
 class MagicLinkService {
   constructor() {
     this.JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-    this.MAGIC_LINK_EXPIRY = 15 * 60 * 1000; // 15 minutes
+    // Extended expiry for development, normal for production
+    this.MAGIC_LINK_EXPIRY = process.env.NODE_ENV === 'development' 
+      ? 60 * 60 * 1000  // 1 hour in development
+      : 15 * 60 * 1000; // 15 minutes in production
     // Use custom scheme for mobile app deep linking
     // In development: fixrx://magic-link
     // In production: https://fixrx.com/auth/magic-link (with universal links)
@@ -27,6 +30,8 @@ class MagicLinkService {
    * Send magic link for login/registration
    */
   async sendMagicLink(email, purpose = 'LOGIN', userAgent = '', ipAddress = '') {
+    console.log('📧 Magic link send started:', { email, purpose, userAgent: userAgent.substring(0, 50) });
+    
     try {
       // Validate email format
       if (!this.isValidEmail(email)) {
@@ -39,7 +44,7 @@ class MagicLinkService {
       // Rate limiting check
       const rateLimitCheck = await this.checkRateLimit(email);
       if (rateLimitCheck.devBypass) {
-        logger.debug('Magic link rate limit bypassed in development', { email });
+ logger.debug('Magic link rate limit bypassed in development', { email });
       }
 
       if (!rateLimitCheck.allowed) {
@@ -54,23 +59,41 @@ class MagicLinkService {
         };
       }
 
-      // Check if user exists
+      // Check if user already exists (simplified for debugging)
       const existingUser = await this.findUserByEmail(email);
       
-      // For LOGIN purpose, user must exist
-      if (purpose === 'LOGIN' && !existingUser) {
-        return {
-          success: false,
-          message: 'No account found with this email address'
-        };
-      }
+      if (process.env.NODE_ENV === 'development') {
+        // Development mode: Allow both LOGIN and REGISTRATION for any email
+        logger.debug('🔄 Development mode: Allowing flexible user handling for testing');
+        
+        if (purpose === 'REGISTRATION' && existingUser) {
+          logger.debug('User exists but allowing registration for testing');
+          // Don't block - just log
+        } else if (purpose === 'LOGIN' && !existingUser) {
+          logger.debug('User does not exist but allowing login for testing');
+          // Don't block - just log
+        }
+      } else {
+        // Production mode: Strict validation
+        const existingUser = await this.findUserByEmail(email);
+        
+        // For REGISTRATION purpose, user must not exist
+        if (purpose === 'REGISTRATION' && existingUser) {
+          return {
+            success: false,
+            message: 'An account already exists with this email address. Please use the login option instead.',
+            code: 'USER_ALREADY_EXISTS'
+          };
+        }
 
-      // For REGISTRATION purpose, user must not exist
-      if (purpose === 'REGISTRATION' && existingUser) {
-        return {
-          success: false,
-          message: 'An account already exists with this email address'
-        };
+        // For LOGIN purpose, user must exist
+        if (purpose === 'LOGIN' && !existingUser) {
+          return {
+            success: false,
+            message: 'No account found with this email address. Please register first.',
+            code: 'USER_NOT_FOUND'
+          };
+        }
       }
 
       // Generate secure token
@@ -92,32 +115,52 @@ class MagicLinkService {
       let webRedirectUrl;
       let directDeepLink = null;
       
+      // Always generate deep link for mobile app
+      directDeepLink = `${this.APP_SCHEME}://magic-link?token=${token}&email=${encodeURIComponent(email)}`;
+      
       if (this.BASE_URL.startsWith('exp://')) {
         // Expo development URL
         webRedirectUrl = `${this.BASE_URL}?token=${token}&email=${encodeURIComponent(email)}`;
       } else if (this.BASE_URL.startsWith('fixrx://')) {
         // Custom scheme for mobile app (development)
-        directDeepLink = `${this.APP_SCHEME}://magic-link?token=${token}&email=${encodeURIComponent(email)}`;
         // Provide web fallback for testing
         webRedirectUrl = `${this.API_BASE_URL.replace('/api/v1', '')}/magic-link?token=${token}&email=${encodeURIComponent(email)}`;
       } else {
         // Production HTTPS URL with universal links
         webRedirectUrl = `${this.BASE_URL}/auth/magic-link?token=${token}&email=${encodeURIComponent(email)}`;
-        directDeepLink = `fixrx://magic-link?token=${token}&email=${encodeURIComponent(email)}`;
       }
+
+ logger.info('Magic link URLs generated', {
+        email,
+        webRedirectUrl,
+        directDeepLink,
+        BASE_URL: this.BASE_URL,
+        APP_SCHEME: this.APP_SCHEME
+      });
 
       const emailResult = await this.sendMagicLinkEmail(email, webRedirectUrl, purpose, existingUser?.first_name, directDeepLink);
 
       if (!emailResult.success) {
-        // Clean up stored magic link if email failed
-        await this.invalidateMagicLink(token);
-        return {
-          success: false,
-          message: 'Failed to send magic link email'
-        };
+        // In development, continue even if email fails (SendGrid not configured)
+        logger.warn('Email sending failed, but continuing in development mode', { email });
+        
+        // For development: Log the magic link to console so developers can test
+        if (process.env.NODE_ENV === 'development') {
+          console.log('\n🔗 DEVELOPMENT MAGIC LINK (Email service not configured):');
+          console.log('📧 Email:', email);
+          console.log('🌐 Web Link:', webRedirectUrl);
+          if (directDeepLink) {
+            console.log('📱 Deep Link:', directDeepLink);
+          }
+          console.log('⏰ Expires:', expiresAt.toISOString());
+          console.log('🔑 Token:', token.substring(0, 10) + '...');
+          console.log('\n💡 Copy the Deep Link above and paste it in your browser or use it directly in the app\n');
+        }
+        
+        // Don't invalidate the magic link - keep it for testing
       }
 
-      logger.info(`Magic link sent successfully`, {
+ logger.info(`Magic link sent successfully`, {
         email,
         purpose,
         magicLinkId,
@@ -131,10 +174,20 @@ class MagicLinkService {
       };
 
     } catch (error) {
-      logger.error('Error sending magic link:', error);
+      console.error('💥 CRITICAL ERROR in sendMagicLink:', {
+        error: error.message,
+        stack: error.stack?.split('\n').slice(0, 5).join('\n'),
+        email,
+        purpose,
+        errorCode: error.code,
+        errorName: error.name
+      });
+      
+ logger.error('Error sending magic link:', error);
       return {
         success: false,
-        message: 'Failed to send magic link. Please try again.'
+        message: `Failed to send magic link: ${error.message}`,
+        code: error.code || 'UNKNOWN_ERROR'
       };
     }
   }
@@ -144,29 +197,50 @@ class MagicLinkService {
    */
   async verifyMagicLink(token, email, userAgent = '', ipAddress = '') {
     try {
-      logger.info('Magic link verification attempt', { token: token.substring(0, 10) + '...', email });
+ console.log(' MAGIC LINK VERIFICATION START:', { 
+        token: token.substring(0, 10) + '...', 
+        email,
+        timestamp: new Date().toISOString()
+      });
       
+ logger.info('Magic link verification attempt', { token: token.substring(0, 10) + '...', email });
+      
+ console.log(' Step 1: Finding magic link in database...');
       const magicLink = await this.findMagicLink(token);
+ console.log(' Magic link found:', magicLink ? 'YES' : 'NO');
 
       if (!magicLink) {
-        logger.error('Magic link not found in database', { token: token.substring(0, 10) + '...', email });
+ console.log(' Magic link not found in database');
+ logger.error('Magic link not found in database', { token: token.substring(0, 10) + '...', email });
         return {
           success: false,
           message: 'Invalid or expired magic link'
         };
       }
 
+ console.log(' Magic link details:', {
+        id: magicLink.id,
+        email: magicLink.email,
+        is_used: magicLink.is_used,
+        expires_at: magicLink.expires_at,
+        purpose: magicLink.purpose
+      });
+
       if (magicLink.is_used) {
+ console.log(' Magic link already used');
         return {
           success: false,
           message: 'This magic link has already been used'
         };
       }
 
+ console.log(' Step 2: Checking expiration...');
       const now = new Date();
       const expiresAt = new Date(magicLink.expires_at);
+ console.log(' Expiration check:', { now: now.toISOString(), expires: expiresAt.toISOString(), expired: now > expiresAt });
 
       if (now > expiresAt) {
+ console.log(' Magic link expired');
         await this.invalidateMagicLink(token);
         return {
           success: false,
@@ -174,40 +248,68 @@ class MagicLinkService {
         };
       }
 
+ console.log(' Step 3: Checking email match...');
       if (magicLink.email.toLowerCase() !== email.toLowerCase()) {
+ console.log(' Email mismatch:', { expected: magicLink.email, provided: email });
         return {
           success: false,
           message: 'Invalid magic link'
         };
       }
 
+ console.log(' Step 4: Processing user...');
       let user = null;
       let isNewUser = false;
 
       if (magicLink.purpose === 'REGISTRATION' || !magicLink.user_id) {
+ console.log(' Creating new user from magic link...');
         user = await this.createUserFromMagicLink(magicLink);
         isNewUser = true;
+ console.log(' New user created:', { id: user?.id, email: user?.email });
       } else {
+ console.log(' Finding existing user...');
         user = await this.findUserById(magicLink.user_id);
         if (!user) {
+ console.log(' User not found for ID:', magicLink.user_id);
           return {
             success: false,
             message: 'User account not found'
           };
         }
+ console.log(' Existing user found:', { id: user.id, email: user.email });
       }
 
+ console.log(' Step 5: Updating last login...');
       await this.updateUserLastLogin(user.id, ipAddress);
 
+ console.log(' Step 6: Generating tokens...');
       const accessToken = this.generateAccessToken(user);
       const refreshToken = this.generateRefreshToken(user.id);
 
+ console.log(' Step 7: Storing refresh token...');
       await this.storeRefreshToken(user.id, refreshToken);
+      
+ console.log(' Step 8: Marking magic link as used...');
       await this.markMagicLinkAsUsed(token);
+ console.log(' Magic link marked as used successfully');
 
       const { password_hash, ...safeUser } = user;
 
-      logger.info(`Magic link authentication successful`, {
+      // Transform snake_case to camelCase for mobile app
+      const transformedUser = {
+        id: safeUser.id,
+        email: safeUser.email,
+        firstName: safeUser.first_name || '',
+        lastName: safeUser.last_name || '',
+        userType: safeUser.user_type?.toUpperCase() || 'CONSUMER',
+        isVerified: safeUser.is_verified || false,
+        phone: safeUser.phone || null,
+        profileImageUrl: safeUser.avatar_url || safeUser.profile_image_url || null,
+        createdAt: safeUser.created_at,
+        updatedAt: safeUser.updated_at
+      };
+
+ logger.info(`Magic link authentication successful`, {
         userId: user.id,
         email: user.email,
         purpose: magicLink.purpose,
@@ -217,32 +319,44 @@ class MagicLinkService {
       return {
         success: true,
         message: isNewUser ? 'Account created and logged in successfully' : 'Logged in successfully',
-        user: safeUser,
+        user: transformedUser,
         token: accessToken,
         refreshToken,
         isNewUser
       };
 
     } catch (error) {
-      console.error('CRITICAL ERROR in verifyMagicLink:', {
+ console.error('CRITICAL ERROR in verifyMagicLink:', {
         error: error.message,
         stack: error.stack?.split('\n').slice(0, 5).join('\n'),
         token: token.substring(0, 10) + '...',
         email,
         errorCode: error.code,
-        errorName: error.name
+        errorName: error.name,
+        errorDetail: error.detail,
+        errorHint: error.hint,
+        errorPosition: error.position,
+        errorWhere: error.where
       });
       
-      logger.error('Error verifying magic link:', {
+ logger.error('Error verifying magic link:', {
         error: error.message,
         stack: error.stack,
         token: token.substring(0, 10) + '...',
-        email
+        email,
+        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
       });
       
+      // Return more detailed error in development
       return {
         success: false,
-        message: 'Failed to verify magic link. Please try again.'
+        message: process.env.NODE_ENV === 'development' 
+          ? `Verification failed: ${error.message}` 
+          : 'Failed to verify magic link. Please try again.',
+        debugInfo: process.env.NODE_ENV === 'development' ? {
+          errorCode: error.code,
+          errorMessage: error.message
+        } : undefined
       };
     }
   }
@@ -297,7 +411,7 @@ class MagicLinkService {
       return { allowed: true };
 
     } catch (error) {
-      logger.error('Rate limit check error:', error);
+ logger.error('Rate limit check error:', error);
       return { allowed: true, error: 'rate-limit-check-failed' }; // fail-open in case of error
     }
   }
@@ -405,12 +519,11 @@ class MagicLinkService {
         first_name,
         last_name,
         user_type,
-        email_verified,
+        is_verified,
         email_verified_at,
-        status,
-        password_hash
+        is_active
       )
-      VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)
       RETURNING *
     `;
     
@@ -420,8 +533,7 @@ class MagicLinkService {
       '', // Placeholder last name; user can update profile later
       'consumer',
       true,
-      'ACTIVE',
-      null
+      true // is_active
     ];
     
     const result = await dbManager.query(query, values);
@@ -434,7 +546,7 @@ class MagicLinkService {
   async updateUserLastLogin(userId, ipAddress) {
     const query = `
       UPDATE users 
-      SET "lastLoginAt" = CURRENT_TIMESTAMP
+      SET last_login_at = CURRENT_TIMESTAMP
       WHERE id = $1
     `;
     
@@ -490,21 +602,21 @@ class MagicLinkService {
       await dbManager.query(query, [userId, crypto.randomUUID(), refreshToken, expiresAt]);
     } catch (error) {
       // Fallback: just log the refresh token (not recommended for production)
-      logger.info(`Refresh token for user ${userId}: ${refreshToken}`);
+ logger.info(`Refresh token for user ${userId}: ${refreshToken}`);
     }
   }
 
   /**
    * Send magic link email
    */
-  async sendMagicLinkEmail(email, magicLinkUrl, purpose, firstName = '', webFallbackUrl = '') {
+  async sendMagicLinkEmail(email, magicLinkUrl, purpose, firstName = '', directDeepLink = '') {
     try {
       const isLogin = purpose === 'LOGIN';
       const subject = isLogin ? 'Your FixRx Login Link' : 'Complete Your FixRx Registration';
 
       const emailService = EmailService.getInstance();
       if (!emailService || !emailService.isConfigured) {
-        logger.warn('Email service not configured, skipping magic link email');
+ logger.warn('Email service not configured, skipping magic link email');
         return {
           success: false,
           error: 'Email service not configured'
@@ -535,16 +647,12 @@ class MagicLinkService {
                  style="background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block; margin-bottom: 10px;">
                 ${isLogin ? 'Sign In to FixRx' : 'Complete Registration'}
               </a>
-              ${webFallbackUrl ? `<br><a href="${webFallbackUrl}" 
-                 style="background-color: #6b7280; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; display: inline-block; margin-top: 10px;">
-                Open Direct Link
-              </a>` : ''}
             </div>
             
             <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
-              ${webFallbackUrl ? 'Click the button above to open the FixRx app and complete your authentication.' : 'If the button doesn\'t work, copy and paste this link:'}
+              ${directDeepLink ? 'Click the button above to open the FixRx app and complete your authentication.' : 'If the button doesn\'t work, copy and paste this link:'}
             </p>
-            ${webFallbackUrl ? `<p style="color: #94a3b8; font-size: 12px; margin-top: 10px;">
+            ${directDeepLink ? `<p style="color: #94a3b8; font-size: 12px; margin-top: 10px;">
               <strong>Note:</strong> The link will automatically open the FixRx app on your device.
             </p>` : `<p style="color: #2563eb; font-size: 14px; word-break: break-all; margin-top: 5px;">
               ${magicLinkUrl}
@@ -576,7 +684,7 @@ class MagicLinkService {
       });
 
       if (!emailResult.success) {
-        logger.error('Error sending magic link email:', emailResult.error);
+ logger.error('Error sending magic link email:', emailResult.error);
         return {
           success: false,
           error: emailResult.error
@@ -586,7 +694,7 @@ class MagicLinkService {
       return emailResult;
     }
     catch (error) {
-      logger.error('Error sending magic link email:', error);
+ logger.error('Error sending magic link email:', error);
       return {
         success: false,
         error: error.message
@@ -606,12 +714,93 @@ class MagicLinkService {
       `;
       
       const result = await dbManager.query(query);
-      logger.info(`Cleaned up ${result.rowCount} expired magic links`);
+ logger.info(`Cleaned up ${result.rowCount} expired magic links`);
       
       return result.rowCount;
     } catch (error) {
-      logger.error('Error cleaning up expired magic links:', error);
+ logger.error('Error cleaning up expired magic links:', error);
       return 0;
+    }
+  }
+
+  /**
+   * Auto-reset user for testing in development mode
+   * Allows reusing the same email for testing by cleaning up existing data
+   */
+  async autoResetUserForTesting(email, purpose) {
+    if (process.env.NODE_ENV !== 'development') {
+      throw new Error('Auto-reset only available in development mode');
+    }
+
+    try {
+      logger.info(`🔄 Auto-resetting user for testing: ${email} (purpose: ${purpose})`);
+
+      // Step 1: Clean up existing magic links for this email
+      const deleteMagicLinksQuery = `
+        DELETE FROM magic_links 
+        WHERE email = $1
+      `;
+      await dbManager.query(deleteMagicLinksQuery, [email]);
+      logger.debug('✅ Deleted existing magic links');
+
+      // Step 2: For REGISTRATION purpose, delete existing user if any
+      if (purpose === 'REGISTRATION') {
+        const existingUser = await this.findUserByEmail(email);
+        if (existingUser) {
+          // Delete user sessions first (if table exists)
+          try {
+            const deleteSessionsQuery = `DELETE FROM user_sessions WHERE user_id = $1`;
+            await dbManager.query(deleteSessionsQuery, [existingUser.id]);
+            logger.debug('✅ Deleted user sessions');
+          } catch (sessionError) {
+            logger.debug('No user sessions to delete or table does not exist');
+          }
+
+          // Delete the user
+          const deleteUserQuery = `DELETE FROM users WHERE email = $1`;
+          await dbManager.query(deleteUserQuery, [email]);
+          logger.debug('✅ Deleted existing user for registration testing');
+        }
+      }
+
+      // Step 3: For LOGIN purpose, ensure user exists with basic data
+      if (purpose === 'LOGIN') {
+        const existingUser = await this.findUserByEmail(email);
+        if (!existingUser) {
+          // Create a basic user for login testing
+          const firstName = email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1);
+          
+          const createUserQuery = `
+            INSERT INTO users (
+              email,
+              first_name,
+              last_name,
+              user_type,
+              is_verified,
+              email_verified_at,
+              is_active
+            )
+            VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)
+          `;
+          
+          await dbManager.query(createUserQuery, [
+            email,
+            firstName,
+            'Test', // Last name
+            'consumer', // Default user type
+            true, // is_verified
+            true // is_active
+          ]);
+          logger.debug('✅ Created test user for login testing');
+        }
+      }
+
+      logger.info(`✅ Auto-reset completed for ${email}`);
+      return { success: true };
+
+    } catch (error) {
+      logger.error('❌ Auto-reset failed:', error);
+      throw error;
     }
   }
 
@@ -633,7 +822,7 @@ class MagicLinkService {
         overall: emailHealthy
       };
     } catch (error) {
-      logger.error('Magic link service health check failed:', error);
+ logger.error('Magic link service health check failed:', error); 
       return {
         database: false,
         email: false,
