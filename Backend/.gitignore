@@ -1,0 +1,365 @@
+# FixRx Backend - Git Ignore Configuration
+
+# =============================================================================
+# ENVIRONMENT AND SECRETS
+# =============================================================================
+# Never commit environment variables or secrets
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.staging
+
+# Environment variable backups
+.env.backup
+.env.*.backup
+
+# =============================================================================
+# NODE.JS
+# =============================================================================
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Grunt intermediate storage
+.grunt
+
+# Bower dependency directory
+bower_components
+
+# node-waf configuration
+.lock-wscript
+
+# Compiled binary addons
+build/Release
+
+# Dependency directories
+jspm_packages/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# =============================================================================
+# LOGS
+# =============================================================================
+# Log files
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Application logs
+app.log
+error.log
+access.log
+combined.log
+
+# PM2 logs
+pm2.log
+pm2-error.log
+
+# =============================================================================
+# TEMPORARY FILES
+# =============================================================================
+# Temporary folders
+tmp/
+temp/
+.tmp/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# Folder config file
+Desktop.ini
+
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+# =============================================================================
+# DEVELOPMENT TOOLS
+# =============================================================================
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# =============================================================================
+# DATABASE
+# =============================================================================
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+
+# Database dumps
+*.sql.gz
+*.dump
+
+# Database migration files (if auto-generated)
+# migrations/*.js (uncomment if migrations are auto-generated)
+
+# =============================================================================
+# UPLOADS AND MEDIA
+# =============================================================================
+# Uploaded files
+uploads/
+public/uploads/
+storage/
+media/
+
+# Image processing cache
+.image-cache/
+
+# =============================================================================
+# TESTING
+# =============================================================================
+# Test coverage
+coverage/
+.nyc_output/
+
+# Jest cache
+.jest/
+
+# Test results
+test-results/
+junit.xml
+
+# =============================================================================
+# BUILD AND DEPLOYMENT
+# =============================================================================
+# Build directories
+build/
+dist/
+out/
+
+# Docker
+.dockerignore
+Dockerfile.dev
+
+# Deployment files
+deploy/
+deployment/
+
+# =============================================================================
+# SECURITY AND CERTIFICATES
+# =============================================================================
+# SSL certificates
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+
+# SSH keys
+id_rsa
+id_rsa.pub
+*.pem
+
+# GPG keys
+*.gpg
+*.asc
+
+# =============================================================================
+# BACKUP FILES
+# =============================================================================
+# Backup files
+*.backup
+*.bak
+*.old
+*.orig
+
+# Database backups
+*.sql.backup
+db_backup_*
+
+# =============================================================================
+# CACHE DIRECTORIES
+# =============================================================================
+# Various cache directories
+.cache/
+.npm/
+.yarn/
+.pnpm-store/
+
+# Redis dump
+dump.rdb
+
+# =============================================================================
+# DOCUMENTATION GENERATION
+# =============================================================================
+# Generated documentation
+docs/generated/
+api-docs/
+
+# =============================================================================
+# MONITORING AND ANALYTICS
+# =============================================================================
+# New Relic
+newrelic_agent.log
+
+# Application performance monitoring
+apm/
+
+# =============================================================================
+# TEMPORARY TEST FILES
+# =============================================================================
+# Test files that should not be committed
+test-*.js
+test-*.html
+test-*.json
+debug-*.js
+temp-*.js
+
+# Magic link test files
+*magic-link-test*
+*oauth-test*
+*signin-test*
+*backend-direct*
+
+# Database test files
+*db-test*
+*database-test*
+*connection-test*
+
+# =============================================================================
+# PACKAGE MANAGER LOCKS (Optional - uncomment if needed)
+# =============================================================================
+# Uncomment these if you want to ignore lock files
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# =============================================================================
+# CUSTOM FIXRX IGNORES
+# =============================================================================
+# FixRx specific files to ignore
+
+# Temporary setup files
+setup-temp/
+temp-setup/
+
+# User uploaded content
+user-uploads/
+profile-images/
+
+# Email templates (if generated)
+email-templates/generated/
+
+# API documentation (if auto-generated)
+api-docs/generated/
+
+# Performance logs
+performance.log
+benchmark.log
+
+# Development database dumps
+dev-db-dump.sql
+test-db-dump.sql
+
+# =============================================================================
+# NOTES
+# =============================================================================
+# This .gitignore file is configured for the FixRx backend application
+# 
+# Key points:
+# - Environment files (.env*) are ignored for security
+# - All temporary and test files are excluded
+# - Build artifacts and cache directories are ignored
+# - Sensitive files like certificates and keys are excluded
+# - Development tools and IDE files are ignored
+#
+# Remember to:
+# - Never commit sensitive information
+# - Keep this file updated as the project evolves
+# - Use .env.example for environment variable templates
+# - Document any custom ignore patterns added

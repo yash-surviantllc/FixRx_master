@@ -1,0 +1,459 @@
+# FixRx - Root .gitignore Configuration
+
+# =============================================================================
+# ENVIRONMENT AND SECRETS
+# =============================================================================
+# Environment files - CRITICAL: Never commit these
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.staging
+**/.env
+**/.env
+
+# Backup environment files
+.env.backup
+.env.*.backup
+
+# =============================================================================
+# NODE.JS DEPENDENCIES
+# =============================================================================
+# Dependencies
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Package manager locks (optional - uncomment if needed)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# =============================================================================
+# BUILD OUTPUTS
+# =============================================================================
+# Build directories
+build/
+dist/
+out/
+**/build/
+**/dist/
+**/out/
+
+# Build artifacts
+*.tgz
+*.tar.gz
+
+# =============================================================================
+# LOGS AND RUNTIME DATA
+# =============================================================================
+# Log files
+logs/
+*.log
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# =============================================================================
+# TESTING AND COVERAGE
+# =============================================================================
+# Test coverage
+coverage/
+**/coverage/
+*.lcov
+.nyc_output/
+
+# Test results
+test-results/
+junit.xml
+
+# =============================================================================
+# CACHE DIRECTORIES
+# =============================================================================
+# Various cache directories
+.cache/
+**/.cache/
+.parcel-cache/
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+.npm/
+.eslintcache
+.yarn/
+
+# =============================================================================
+# TEMPORARY FILES
+# =============================================================================
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+**/.tmp/
+temp/
+**/temp/
+
+# =============================================================================
+# OPERATING SYSTEM FILES
+# =============================================================================
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# FixRx Production .gitignore
+# Environment files
+#.env
+#.env.local
+#.env.production
+#.env.staging
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Build outputs
+build/
+dist/
+out/
+*.tgz
+next/
+.nuxt/
+
+# Logs
+logs/
+*.log
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory
+coverage/
+*.lcov
+.nyc_output/
+
+# Cache directories
+.cache/
+.parcel-cache/
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+.npm/
+.eslintcache
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# IDE files
+vscode/
+.idea/
+*.swp
+*.swo
+.tern-port
+
+# Mobile app specific
+FixRxMobile/.expo/
+FixRxMobile/node_modules/
+FixRxMobile/web-build/
+FixRxMobile/dist/
+
+# Backend specific
+Backend/uploads/
+Backend/logs/
+Backend/tmp/
+
+# Database
+*.sqlite
+*.db
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Firebase
+firebase-debug.log
+firebase/
+
+# Serverless
+.serverless/
+
+# Optional files
+.yarn-integrity
+.fusebox/
+.dynamodb/
+
+# Production secrets
+*.pem
+*.key
+*.crt
+service-account-*.json
+
+# =============================================================================
+# IDE AND EDITOR FILES
+# =============================================================================
+# Visual Studio Code
+vscode/
+*.code-workspace
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+.#*
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# =============================================================================
+# PROJECT SPECIFIC - FIXRX
+# =============================================================================
+# Frontend specific (React)
+Frontend/node_modules/
+Frontend/dist/
+Frontend/build/
+Frontend/.vite/
+Frontend/.env.local
+
+# Backend specific (Node.js)
+Backend/node_modules/
+Backend/dist/
+Backend/logs/
+Backend/uploads/
+Backend/tmp/
+Backend/.env
+
+# Mobile app specific (React Native)
+FixRxMobile/.expo/
+FixRxMobile/node_modules/
+FixRxMobile/web-build/
+FixRxMobile/dist/
+FixRxMobile/.env.local
+
+# =============================================================================
+# DATABASE FILES
+# =============================================================================
+# SQLite databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Database dumps
+*.sql.gz
+*.dump
+
+# =============================================================================
+# TEMPORARY AND DEBUG FILES
+# =============================================================================
+# Temporary scripts and debug files
+*.ps1
+remove-emojis.js
+fix-user-type.js
+**/auto-reset-user.js
+**/check-schema.js
+**/fix-schema-*.js
+**/migrate-now.js
+
+# Documentation files (moved to wiki or separate docs)
+docs/ENVIRONMENT_SETUP_GUIDE.md
+docs/APP_STORE_DEPLOYMENT_GUIDE.md
+**/docs/USER_GUIDE_AND_MANUAL.md
+**/docs/THIRD_PARTY_INTEGRATION_GUIDES.md
+**/docs/DEPLOYMENT_AND_MAINTENANCE_GUIDELINES.md
+
+# Status and audit files
+*_STATUS.md
+*_REPORT.md
+*_CHECKLIST.md
+*_SUMMARY.md
+*_ISSUES.md
+*_FIX_*.md
+
+# =============================================================================
+# SECURITY AND CERTIFICATES
+# =============================================================================
+# SSL certificates
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+
+# SSH keys
+id_rsa
+id_rsa.pub
+
+# Service account files
+service-account-*.json
+firebase-adminsdk-*.json
+
+# =============================================================================
+# THIRD-PARTY SERVICES
+# =============================================================================
+# Firebase
+firebase-debug.log
+firebase/
+firebase/
+
+# Serverless
+.serverless/
+
+# AWS
+aws/
+
+# =============================================================================
+# UPLOADS AND MEDIA
+# =============================================================================
+# User uploaded content
+uploads/
+**/uploads/
+public/uploads/
+storage/
+media/
+
+# Image processing cache
+.image-cache/
+
+# =============================================================================
+# BACKUP FILES
+# =============================================================================
+# Backup files
+*.backup
+*.bak
+*.old
+*.orig
+
+# Database backups
+*.sql.backup
+db_backup_*
+
+# =============================================================================
+# MONITORING AND LOGS
+# =============================================================================
+# Application logs
+app.log
+error.log
+access.log
+combined.log
+
+# PM2 logs
+pm2.log
+pm2-error.log
+
+# =============================================================================
+# DEVELOPMENT TOOLS
+# =============================================================================
+# Storybook
+.storybook-out/
+storybook-static/
+
+# Jest
+.jest/
+
+# ESLint cache
+.eslintcache
+
+# Prettier cache
+.prettiercache
+
+# =============================================================================
+# DEPLOYMENT
+# =============================================================================
+# Docker
+dockerignore
+Dockerfile.dev
+
+# Kubernetes
+*.yaml.local
+*.yml.local
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# =============================================================================
+# NOTES
+# =============================================================================
+# This .gitignore is configured for the FixRx project
+# 
+# Key security points:
+# - All .env files are ignored to protect secrets
+# - SSL certificates and keys are excluded
+# - Service account files are protected
+# - User uploads are ignored (should be in cloud storage)
+# 
+# Remember to:
+# - Use .env.example files for configuration templates
+# - Never commit API keys or passwords
+# - Keep this file updated as project evolves
+
+# Environment files (never commit these)
+.env
+.env.local
+.env*.local
+env
+Backend/.env
+Backend/env
+Frontend/.env
+FixRxMobile/.env
+
+# Environment files
+.env
+.env.local
+env
+Backend/.env
+Backend/env

@@ -1,0 +1,63 @@
+{
+  "expo": {
+    "name": "FixRxMobile",
+    "slug": "FixRxMobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "fixrx",
+    "experiments": {
+      "typedRoutes": false
+    },
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fixrx.mobile",
+      "associatedDomains": [
+        "applinks:fixrx.com",
+        "applinks:*.fixrx.com"
+      ]
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.fixrx.mobile",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "fixrx",
+              "host": "*"
+            },
+            {
+              "scheme": "https",
+              "host": "*.fixrx.com",
+              "pathPrefix": "/auth/magic-link"
+            },
+            {
+              "scheme": "http",
+              "host": "localhost",
+              "pathPrefix": "/auth/magic-link"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

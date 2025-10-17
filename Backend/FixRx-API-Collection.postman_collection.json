@@ -1,0 +1,699 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6",
+		"name": "FixRx Complete API",
+		"description": "Complete API testing collection for FixRx Backend - 115 endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Health Check",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:3000/health",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "3000",
+							"path": ["health"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "2. Authentication",
+			"item": [
+				{
+					"name": "Register Consumer",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const json = pm.response.json();",
+									"    pm.collectionVariables.set('accessToken', json.data.tokens.accessToken);",
+									"    pm.collectionVariables.set('refreshToken', json.data.tokens.refreshToken);",
+									"    pm.collectionVariables.set('userId', json.data.user.id);",
+									"    console.log('✅ Token saved:', json.data.tokens.accessToken.substring(0, 20) + '...');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"consumer@test.com\",\n  \"password\": \"TestPass123!\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Consumer\",\n  \"phone\": \"+15551234567\",\n  \"role\": \"CONSUMER\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "register"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Register Vendor",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const json = pm.response.json();",
+									"    pm.collectionVariables.set('accessToken', json.data.tokens.accessToken);",
+									"    pm.collectionVariables.set('refreshToken', json.data.tokens.refreshToken);",
+									"    pm.collectionVariables.set('userId', json.data.user.id);",
+									"    console.log('✅ Vendor registered! Token saved.');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"vendor@test.com\",\n  \"password\": \"TestPass123!\",\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Vendor\",\n  \"phone\": \"+15559876543\",\n  \"role\": \"VENDOR\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "register"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login as Vendor",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const json = pm.response.json();",
+									"    pm.collectionVariables.set('accessToken', json.data.tokens.accessToken);",
+									"    pm.collectionVariables.set('refreshToken', json.data.tokens.refreshToken);",
+									"    pm.collectionVariables.set('userId', json.data.user.id);",
+									"    console.log('✅ Logged in as VENDOR! Token saved.');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"vendor@test.com\",\n  \"password\": \"TestPass123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "login"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const json = pm.response.json();",
+									"    pm.collectionVariables.set('accessToken', json.data.tokens.accessToken);",
+									"    pm.collectionVariables.set('refreshToken', json.data.tokens.refreshToken);",
+									"    pm.collectionVariables.set('userId', json.data.user.id);",
+									"    console.log('✅ Login successful! Token saved.');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"consumer@test.com\",\n  \"password\": \"TestPass123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "login"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/auth/logout",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "logout"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "3. Users",
+			"item": [
+				{
+					"name": "Get Current User",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/users/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["users", "me"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"firstName\": \"Updated\",\n  \"lastName\": \"Name\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/users/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["users", "me"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "4. Consumers",
+			"item": [
+				{
+					"name": "Create Consumer Profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const json = pm.response.json();",
+									"    pm.collectionVariables.set('consumerId', json.data.consumer.id);",
+									"    console.log('✅ Consumer profile created:', json.data.consumer.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"preferences\": {\n    \"services\": [\"plumbing\", \"electrical\"]\n  },\n  \"searchRadius\": 50\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/consumers/profile",
+							"host": ["{{baseUrl}}"],
+							"path": ["consumers", "profile"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Consumer Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/consumers/profile",
+							"host": ["{{baseUrl}}"],
+							"path": ["consumers", "profile"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Consumer Dashboard",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/consumers/dashboard",
+							"host": ["{{baseUrl}}"],
+							"path": ["consumers", "dashboard"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Consumer Location",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"latitude\": 37.7749,\n  \"longitude\": -122.4194,\n  \"address\": \"123 Market St\",\n  \"city\": \"San Francisco\",\n  \"state\": \"CA\",\n  \"zipCode\": \"94102\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/consumers/location",
+							"host": ["{{baseUrl}}"],
+							"path": ["consumers", "location"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "5. Vendors",
+			"item": [
+				{
+					"name": "Create Vendor Profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const json = pm.response.json();",
+									"    pm.collectionVariables.set('vendorId', json.data.vendor.id);",
+									"    console.log('✅ Vendor profile created:', json.data.vendor.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"businessName\": \"ABC Plumbing Co\",\n  \"businessDescription\": \"Professional plumbing services\",\n  \"businessAddress\": \"456 Mission St, San Francisco, CA 94105\",\n  \"businessPhone\": \"+15559876543\",\n  \"businessEmail\": \"contact@abcplumbing.com\",\n  \"serviceCategories\": [\"plumbing\", \"water_heater\"],\n  \"licenseNumber\": \"PL123456\",\n  \"hourlyRate\": 85.00,\n  \"latitude\": 37.7749,\n  \"longitude\": -122.4194,\n  \"address\": \"456 Mission St\",\n  \"city\": \"San Francisco\",\n  \"state\": \"CA\",\n  \"zipCode\": \"94105\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/vendors/profile",
+							"host": ["{{baseUrl}}"],
+							"path": ["vendors", "profile"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Vendor Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/vendors/profile/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["vendors", "profile", "me"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Search Vendors (Public)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/vendors/search?city=San Francisco&state=CA&page=1&limit=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["vendors", "search"],
+							"query": [
+								{
+									"key": "city",
+									"value": "San Francisco"
+								},
+								{
+									"key": "state",
+									"value": "CA"
+								},
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "6. Ratings",
+			"item": [
+				{
+					"name": "Create Rating",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const json = pm.response.json();",
+									"    pm.collectionVariables.set('ratingId', json.data.rating.id);",
+									"    console.log('✅ Rating created:', json.data.rating.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"vendorId\": \"{{vendorId}}\",\n  \"costEffectiveness\": 4,\n  \"qualityOfService\": 5.0,\n  \"timelinessOfDelivery\": 4.0,\n  \"professionalism\": 5.0,\n  \"reviewTitle\": \"Excellent Service!\",\n  \"reviewText\": \"Very professional and efficient.\",\n  \"jobDescription\": \"Fixed kitchen sink leak\",\n  \"jobValue\": 250,\n  \"isPublic\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/ratings",
+							"host": ["{{baseUrl}}"],
+							"path": ["ratings"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Vendor Ratings",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/ratings/vendor/{{vendorId}}?page=1&limit=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["ratings", "vendor", "{{vendorId}}"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "7. Contacts",
+			"item": [
+				{
+					"name": "Import Contacts",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"contacts\": [\n    {\n      \"firstName\": \"John\",\n      \"lastName\": \"Doe\",\n      \"phone\": \"+15551111111\",\n      \"email\": \"john@example.com\"\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/contacts/import",
+							"host": ["{{baseUrl}}"],
+							"path": ["contacts", "import"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Contacts",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/contacts",
+							"host": ["{{baseUrl}}"],
+							"path": ["contacts"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "8. Invitations",
+			"item": [
+				{
+					"name": "Send Email Invitation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"EMAIL\",\n  \"recipientEmail\": \"friend@example.com\",\n  \"message\": \"Join me on FixRx!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/invitations/send",
+							"host": ["{{baseUrl}}"],
+							"path": ["invitations", "send"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Send SMS Invitation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"SMS\",\n  \"recipientPhone\": \"+919413526531\",\n  \"message\": \"Check out FixRx!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/invitations/send",
+							"host": ["{{baseUrl}}"],
+							"path": ["invitations", "send"]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000/api/v1",
+			"type": "string"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refreshToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "vendorId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "consumerId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "ratingId",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
