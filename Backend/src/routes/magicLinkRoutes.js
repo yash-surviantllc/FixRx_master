@@ -6,6 +6,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const magicLinkController = require('../controllers/magicLinkController');
+const { logger } = require('../utils/logger');
 
 const router = express.Router();
 
@@ -63,8 +64,13 @@ const verificationRateLimit = rateLimit({
     const email = req.body?.email || 'unknown';
     return `verify-${req.ip}-${email}`;
   },
-  onLimitReached: (req, res) => {
-    console.log(`Verification rate limit exceeded: ${req.ip} - ${req.body?.email}`);
+  handler: (req, res) => {
+    logger.warn('Rate limit reached for verification', { ip: req.ip, email: req.body?.email });
+    return res.status(429).json({
+      success: false,
+      error: 'Too many verification attempts. Please try again later.',
+      code: 'RATE_LIMIT_EXCEEDED'
+    });
   }
 });
 

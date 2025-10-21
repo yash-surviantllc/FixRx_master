@@ -6,22 +6,6 @@ const { dbManager } = require('../config/database');
  */
 const authenticateToken = async (req, res, next) => {
   try {
-    // TEMPORARY: Bypass auth for testing
-    if (process.env.NODE_ENV === 'development') {
-      req.user = { 
-        id: '4c459ce7-c2d9-4c72-8725-f98e58111700',        // John Smith's real ID
-        userId: '4c459ce7-c2d9-4c72-8725-f98e58111700',    // John Smith's real ID
-        email: 'test@example.com',
-        role: 'user',
-        is_active: true,
-        first_name: 'Test',
-        last_name: 'User'
-      };
-      console.log('Auth bypassed for development');
-      return next();
-    }
-
-    // YOUR EXISTING AUTH LOGIC CONTINUES UNCHANGED:
     const authHeader = req.headers.authorization;
     
     if (!authHeader) {
@@ -47,7 +31,14 @@ const authenticateToken = async (req, res, next) => {
       const decoded = jwt.verify(token, jwtSecret);
       
       // Get user ID from token (support both userId and id fields)
-      const userId = decoded.userId || decoded.id;
+      let userId = decoded.userId || decoded.id;
+      
+      // Development bypass - only use hardcoded user if no valid token provided
+      if (process.env.NODE_ENV === 'development' && !userId) {
+        console.log('Development: No valid user ID in token, using default test user');
+        userId = '7bf186e2-fe2a-4133-9ebb-e6b323078d52'; // john.consumer@example.com
+      }
+      
       if (!userId) {
         return res.status(401).json({
           success: false,
@@ -56,7 +47,22 @@ const authenticateToken = async (req, res, next) => {
         });
       }
 
-      // Get user from database
+      // In development, we can skip the database lookup if we have a valid token
+      if (process.env.NODE_ENV === 'development' && decoded.email) {
+        console.log('Development: Using token user without database lookup');
+        req.user = {
+          id: userId,
+          userId: userId,
+          email: decoded.email,
+          user_type: decoded.user_type || 'user',
+          is_active: true,
+          first_name: decoded.first_name || 'Development',
+          last_name: decoded.last_name || 'User'
+        };
+        return next();
+      }
+
+      // Get user from database (production or when needed in development)
       const result = await dbManager.query(
         `SELECT 
           id, 
@@ -145,29 +151,6 @@ const authenticateToken = async (req, res, next) => {
         error: tokenError.message
       });
     }
-
-    const user = result.rows[0];
-    
-    if (user.status !== 'active') {
-      return res.status(401).json({
-        success: false,
-        message: 'User account is inactive',
-        code: 'USER_INACTIVE'
-      });
-    }
-
-    // Attach user to request with consistent format
-    req.user = {
-      id: user.id,
-      userId: user.id, // For compatibility
-      email: user.email,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      userType: user.user_type,
-      phone: user.phone,
-      phoneVerified: user.phone_verified
-    };
-    next();
     
   } catch (error) {
     console.error('Authentication middleware error:', error);

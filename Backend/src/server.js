@@ -4,6 +4,11 @@
  */
 
 require('dotenv').config();
+
+// Debug: Log environment variables (remove in production)
+console.log('Environment:', process.env.NODE_ENV);
+console.log('Database URL:', process.env.DATABASE_URL ? 'Set' : 'Not set');
+
 const { fixRxApp } = require('./app');
 
 // Graceful shutdown handling
