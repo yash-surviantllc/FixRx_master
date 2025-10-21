@@ -4,7 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_CONFIG } from '../config/api';
+import API_CONFIG from '../config/api';
 
 export interface MagicLinkSendRequest {
   email: string;
@@ -47,7 +47,7 @@ class MagicLinkAuthService {
   };
 
   constructor() {
-    this.baseUrl = `${API_CONFIG.BASE_URL}/auth/magic-link`;
+    this.baseUrl = `${API_CONFIG.BASE_URL}/api/v1/auth/magic-link`;
     console.log('MagicLinkAuthService initialized:', { 
       baseUrl: this.baseUrl,
       apiConfigBaseUrl: API_CONFIG.BASE_URL,

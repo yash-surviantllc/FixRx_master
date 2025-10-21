@@ -24,7 +24,7 @@ class UserController {
           id, email, phone, first_name, last_name,
           user_type, phone_verified_at, email_verified_at, 
           created_at, updated_at, last_login_at,
-          is_verified, profile_completed
+          is_verified
         FROM users
         WHERE id = $1
       `, [userId]);

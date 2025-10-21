@@ -33,32 +33,32 @@ class GeoSearchService {
 
   async createSpatialIndexes() {
     try {
-      // Create compound index for lat/lng bounding box queries
-      // Create spatial index without status filter (column doesn't exist yet)
+      // Create compound index for lat/lng bounding box queries for vendors
       await dbManager.query(`
-        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_vendors_location_bbox 
-        ON vendors (latitude, longitude)
+        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_vendor_location_bbox 
+        ON users (latitude, longitude)
+        WHERE user_type = 'VENDOR'
       `);
 
-      // Skip GIN index for now - column might not exist
-      // await dbManager.query(`
-      //   CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_vendors_service_categories 
-      //   ON vendors USING GIN (service_categories)
-      // `);
-
-      // Create partial index for active vendors only
-      // Create partial index for vendors with location
+      // Create partial index for active vendors with location
       await dbManager.query(`
-        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_vendors_active_location 
-        ON vendors (latitude, longitude, created_at) 
-        WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_vendor_active_location 
+        ON users (latitude, longitude, created_at) 
+        WHERE user_type = 'VENDOR' 
+        AND is_active = true 
+        AND latitude IS NOT NULL 
+        AND longitude IS NOT NULL
       `);
 
-      console.log('✅ Spatial indexes created/verified');
-
+      console.log('✅ Vendor spatial indexes created/verified');
     } catch (error) {
-      console.error('❌ Spatial Index Creation Failed:', error);
-      // Don't throw - indexes might already exist
+      // Permission errors are non-critical - indexes are performance optimizations
+      if (error.code === '42501') {
+        console.log('⚠️  No permission to create spatial indexes - continuing without optimization');
+      } else {
+        console.log('⚠️  Could not create spatial indexes:', error.message);
+      }
+      // Don't throw - allow service to continue
     }
   }
 

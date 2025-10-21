@@ -636,13 +636,37 @@ class FixRxApplication {
 
   setupMobileAppRoutes() {
     try {
- console.log(' Setting up Mobile App Routes...'); 
+      console.log('🔧 Setting up Mobile App Routes...');
+      
+      // Debug: List all routes before adding
+      console.log('🔄 Current routes:');
+      this.app._router.stack.forEach((middleware) => {
+        if (middleware.route) {
+          // Routes registered directly on the app
+          console.log(`   ${Object.keys(middleware.route.methods).join(', ').toUpperCase()} ${middleware.route.path}`);
+        } else if (middleware.name === 'router') {
+          // Routes added as router
+          middleware.handle.stack.forEach((handler) => {
+            if (handler.route) {
+              console.log(`   ${Object.keys(handler.route.methods).join(', ').toUpperCase()} ${handler.route.path}`);
+            }
+          });
+        }
+      });
+
       const mobileAppRoutes = require('./routes/mobileAppRoutes');
-      this.app.use('/api/v1', mobileAppRoutes); // Mount at /api/v1
- console.log(' Mobile App Routes Configured'); 
+      this.app.use('/api/v1', mobileAppRoutes);
+      
+      console.log('✅ Mobile App Routes Configured at /api/v1');
+      console.log('   Available endpoints:');
+      console.log('   - POST   /api/v1/connections/request');
+      console.log('   - GET    /api/v1/connections/requests');
+      console.log('   - POST   /api/v1/messages/send');
+      console.log('   - POST   /api/v1/ratings/create');
+      
     } catch (error) {
- console.error(' Failed to setup mobile app routes:', error); 
-      throw error; // Re-throw to prevent app start with misconfigured routes
+      console.error('❌ Failed to setup mobile app routes:', error);
+      throw error;
     }
   }
 
