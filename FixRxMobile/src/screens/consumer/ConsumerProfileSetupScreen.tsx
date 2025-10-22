@@ -97,20 +97,34 @@ const ConsumerProfileSetupScreen: React.FC = () => {
       } as any);
       
       // Save to backend
-      console.log('Saving profile to backend:', {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        phone: cleanPhone
-      });
-      
-      await authService.updateProfile({
+      const profileData = {
         firstName: formData.firstName,
         lastName: formData.lastName || '',
         phone: cleanPhone || null,
-        profileCompleted: true  // Mark profile as complete
-      });
+        metroArea: formData.metroArea || null,
+        profileCompleted: true
+      };
       
-      console.log('✅ Profile saved to backend successfully');
+      console.log('\n\n🔵🔵🔵 CONSUMER PROFILE SETUP - SAVING DATA 🔵🔵🔵');
+      console.log('========================================');
+      console.log('📝 FORM DATA:');
+      console.log('  First Name:', formData.firstName);
+      console.log('  Last Name:', formData.lastName);
+      console.log('  Phone (raw):', formData.phone);
+      console.log('  Phone (clean):', cleanPhone);
+      console.log('  Metro Area:', formData.metroArea);
+      console.log('========================================');
+      console.log('📤 SENDING TO BACKEND:');
+      console.log(JSON.stringify(profileData, null, 2));
+      console.log('========================================\n');
+      
+      const response = await authService.updateProfile(profileData);
+      
+      console.log('\n========================================');
+      console.log('📥 BACKEND RESPONSE:');
+      console.log(JSON.stringify(response, null, 2));
+      console.log('========================================');
+      console.log('✅ Profile saved to backend successfully\n\n');
       
       // Navigate to the main app
       navigation.navigate('MainTabs');

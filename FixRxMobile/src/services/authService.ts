@@ -15,11 +15,12 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   userType: 'consumer' | 'vendor';
-  phone?: string;
+  phone?: string | null;
   profileImage?: string;
   isVerified?: boolean;
-  metroArea?: string;
+  metroArea?: string | null;
   createdAt?: string;
+  profileCompleted?: boolean;
 }
 
 export interface AuthTokens {
@@ -196,22 +197,29 @@ class AuthService {
 
   // Update user profile
   async updateProfile(updates: Partial<AuthUser>): Promise<ApiResponse<AuthUser>> {
-    const backendCall = () => apiClient.put<AuthUser>(API_ENDPOINTS.AUTH.PROFILE, updates);
+    console.log('🔄 authService.updateProfile called with:', JSON.stringify(updates, null, 2));
     
-    const mockData = {
-      id: 'user_123',
-      email: updates.email || 'john.doe@example.com',
-      firstName: updates.firstName || 'John',
-      lastName: updates.lastName || 'Doe',
-      userType: updates.userType || 'consumer' as const,
-      phone: updates.phone || '+1234567890',
-      profileImage: updates.profileImage || 'https://i.pravatar.cc/100?img=1',
-      isVerified: true,
-      metroArea: updates.metroArea || 'San Francisco',
-      createdAt: new Date().toISOString(),
-    } as AuthUser;
-
-    return this.useBackendOrMock<AuthUser>(backendCall, mockData);
+    try {
+      // Check if backend is available
+      const isAvailable = await apiClient.isBackendAvailable();
+      console.log('🔍 Backend available:', isAvailable);
+      
+      if (!isAvailable) {
+        console.error('❌ BACKEND NOT AVAILABLE - Data will NOT be saved to database!');
+        console.error('⚠️  Make sure your backend server is running on http://192.168.1.6:3000');
+        throw new Error('Backend server is not available. Please start the server and try again.');
+      }
+      
+      // Make the actual API call
+      console.log('📡 Making API call to update profile...');
+      const response = await apiClient.put<AuthUser>(API_ENDPOINTS.AUTH.PROFILE, updates);
+      console.log('✅ API response received:', JSON.stringify(response, null, 2));
+      
+      return response;
+    } catch (error: any) {
+      console.error('❌ Error in updateProfile:', error);
+      throw error;
+    }
   }
 
   // Save authentication data to storage

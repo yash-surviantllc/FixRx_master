@@ -19,6 +19,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../types/navigation';
 import { useAppContext } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
+import { authService } from '../../services/authService';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialIcons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
@@ -206,20 +207,28 @@ const VendorProfileSetupScreen: React.FC = () => {
         profileImage: profileImage || undefined,
       } as any);
       
-      // Save basic profile data to backend
-      console.log('Saving vendor profile to backend:', {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        phone: cleanPhone
-      });
-      
-      await authService.updateProfile({
+      // Save ALL profile data to backend
+      const profileData = {
         firstName: formData.firstName,
         lastName: formData.lastName || '',
         phone: cleanPhone || null,
+        metroArea: formData.serviceArea || null,
         // Don't mark as complete yet - vendor needs to complete services and portfolio
-      });
+      };
       
+      console.log('========================================');
+      console.log('SAVING VENDOR PROFILE TO BACKEND');
+      console.log('========================================');
+      console.log('Profile Data:', JSON.stringify(profileData, null, 2));
+      console.log('========================================');
+      
+      const response = await authService.updateProfile(profileData);
+      
+      console.log('========================================');
+      console.log('BACKEND RESPONSE');
+      console.log('========================================');
+      console.log('Response:', JSON.stringify(response, null, 2));
+      console.log('========================================');
       console.log('✅ Vendor profile data saved');
       
       navigation.navigate('VendorServiceSelection');

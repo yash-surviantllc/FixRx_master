@@ -5,6 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_CONFIG } from '../config/api';
+import { apiClient } from './apiClient';
 
 export interface MagicLinkSendRequest {
   email: string;
@@ -370,6 +371,10 @@ class MagicLinkAuthService {
         [this.storageKeys.token, token],
         [this.storageKeys.user, JSON.stringify(user)],
       ]);
+      
+      // Set token in API client for authenticated requests
+      apiClient.setAuthToken(token);
+      console.log('✅ Auth token set in API client');
     } catch (error) {
  console.error('Store auth data error:', error); 
       throw error;

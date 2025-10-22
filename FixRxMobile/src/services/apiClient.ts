@@ -102,15 +102,30 @@ class ApiClient {
       const url = `${this.baseURL}${endpoint}`;
       const headers = this.buildHeaders(options.headers as Record<string, string>);
 
+      console.log('📡 API Request:', {
+        method: options.method || 'GET',
+        url,
+        hasAuth: !!this.authToken,
+        authToken: this.authToken ? this.authToken.substring(0, 20) + '...' : 'NONE',
+        body: options.body ? JSON.parse(options.body as string) : undefined
+      });
+
       const response = await fetch(url, {
         ...options,
         headers,
         signal: controller.signal,
       });
 
+      console.log('📥 API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
       clearTimeout(timeoutId);
       return this.handleResponse<T>(response);
     } catch (error) {
+      console.error('❌ API Request failed:', error);
       return this.handleError(error);
     }
   }

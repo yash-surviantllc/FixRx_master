@@ -6,22 +6,7 @@ const { dbManager } = require('../config/database');
  */
 const authenticateToken = async (req, res, next) => {
   try {
-    // TEMPORARY: Bypass auth for testing
-    if (process.env.NODE_ENV === 'development') {
-      req.user = { 
-        id: '4c459ce7-c2d9-4c72-8725-f98e58111700',        // John Smith's real ID
-        userId: '4c459ce7-c2d9-4c72-8725-f98e58111700',    // John Smith's real ID
-        email: 'test@example.com',
-        role: 'user',
-        is_active: true,
-        first_name: 'Test',
-        last_name: 'User'
-      };
-      console.log('Auth bypassed for development');
-      return next();
-    }
-
-    // YOUR EXISTING AUTH LOGIC CONTINUES UNCHANGED:
+    // DON'T BYPASS AUTH - Always verify the JWT token
     const authHeader = req.headers.authorization;
     
     if (!authHeader) {
@@ -145,29 +130,6 @@ const authenticateToken = async (req, res, next) => {
         error: tokenError.message
       });
     }
-
-    const user = result.rows[0];
-    
-    if (user.status !== 'active') {
-      return res.status(401).json({
-        success: false,
-        message: 'User account is inactive',
-        code: 'USER_INACTIVE'
-      });
-    }
-
-    // Attach user to request with consistent format
-    req.user = {
-      id: user.id,
-      userId: user.id, // For compatibility
-      email: user.email,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      userType: user.user_type,
-      phone: user.phone,
-      phoneVerified: user.phone_verified
-    };
-    next();
     
   } catch (error) {
     console.error('Authentication middleware error:', error);

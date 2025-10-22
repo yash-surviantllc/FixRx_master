@@ -501,9 +501,7 @@ class MagicLinkService {
    * Create user from magic link (for registration)
    */
   async createUserFromMagicLink(magicLink) {
-    // Extract name from email (simple approach)
-    const emailParts = magicLink.email.split('@')[0];
-    const firstName = emailParts.charAt(0).toUpperCase() + emailParts.slice(1);
+    console.log('🆕 Creating new user from magic link:', { email: magicLink.email });
     
     const query = `
       INSERT INTO users (
@@ -522,13 +520,22 @@ class MagicLinkService {
     const values = [
       magicLink.email,
       null, // No password for magic link authentication
-      firstName,
-      '', // Placeholder last name; user can update profile later
-      'consumer',
-      true
+      null, // User will provide first name during profile setup
+      null, // User will provide last name during profile setup
+      'consumer', // Default user type; user can change during onboarding
+      true // Email is verified via magic link
     ];
     
+    console.log('📝 Inserting user with values:', {
+      email: values[0],
+      first_name: values[2],
+      last_name: values[3],
+      user_type: values[4],
+      is_verified: values[5]
+    });
+    
     const result = await dbManager.query(query, values);
+    console.log('✅ User created successfully:', { id: result.rows[0].id, email: result.rows[0].email });
     return result.rows[0];
   }
 

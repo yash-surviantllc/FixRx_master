@@ -24,7 +24,7 @@ class UserController {
           id, email, phone, first_name, last_name,
           user_type, phone_verified_at, email_verified_at, 
           created_at, updated_at, last_login_at,
-          is_verified, profile_completed
+          is_verified, profile_completed, metro_area
         FROM users
         WHERE id = $1
       `, [userId]);
@@ -51,6 +51,7 @@ class UserController {
         emailVerified: !!user.email_verified_at,
         isVerified: user.is_verified || false,
         profileCompleted: user.profile_completed || false,
+        metroArea: user.metro_area || null,
         createdAt: user.created_at,
         updatedAt: user.updated_at,
         lastLoginAt: user.last_login_at
@@ -85,13 +86,22 @@ class UserController {
         });
       }
 
+      // LOG INCOMING DATA
+      console.log('========================================');
+      console.log('UPDATE PROFILE REQUEST');
+      console.log('========================================');
+      console.log('User ID:', userId);
+      console.log('Request Body:', JSON.stringify(req.body, null, 2));
+      console.log('========================================');
+
       const schema = Joi.object({
         firstName: Joi.string().min(1).max(100).optional(),
         lastName: Joi.string().min(1).max(100).optional(),
         email: Joi.string().email().optional(),
-        phone: Joi.string().optional(),
+        phone: Joi.string().optional().allow(null, ''),
         userType: Joi.string().valid('consumer', 'vendor', 'CONSUMER', 'VENDOR').optional(),
-        profileCompleted: Joi.boolean().optional()
+        profileCompleted: Joi.boolean().optional(),
+        metroArea: Joi.string().optional().allow(null, '')
       });
 
       const { error, value } = schema.validate(req.body);
@@ -132,6 +142,10 @@ class UserController {
         updates.push(`profile_completed = $${paramIndex++}`);
         values.push(value.profileCompleted);
       }
+      if (value.metroArea !== undefined) {
+        updates.push(`metro_area = $${paramIndex++}`);
+        values.push(value.metroArea);
+      }
 
       if (updates.length === 0) {
         return res.status(400).json({
@@ -150,12 +164,30 @@ class UserController {
         WHERE id = $${paramIndex}
         RETURNING id, email, first_name, last_name, user_type, phone, 
                   phone_verified, phone_verified_at, email_verified, 
-                  profile_completed, created_at, updated_at, last_login_at
+                  profile_completed, metro_area, created_at, updated_at, last_login_at
       `;
 
+      console.log('Executing SQL:', query);
+      console.log('With values:', values);
+      console.log('Looking for user ID:', userId);
+      
       const result = await dbManager.query(query, values);
 
+      console.log('Query result rows:', result.rows.length);
+      
       if (!result.rows.length) {
+        console.log('❌ USER NOT FOUND IN DATABASE!');
+        console.log('User ID from JWT:', userId);
+        console.log('Query:', query);
+        console.log('Values:', values);
+        
+        // Check if user exists at all
+        const checkUser = await dbManager.query('SELECT id, email FROM users WHERE id = $1', [userId]);
+        console.log('User exists check:', checkUser.rows.length > 0 ? 'YES' : 'NO');
+        if (checkUser.rows.length > 0) {
+          console.log('User found:', checkUser.rows[0]);
+        }
+        
         return res.status(404).json({
           success: false,
           message: 'User not found',
@@ -164,6 +196,8 @@ class UserController {
       }
 
       const user = result.rows[0];
+      console.log('Updated user:', JSON.stringify(user, null, 2));
+      console.log('========================================');
       
       // Transform to match frontend expectations
       const userProfile = {
@@ -177,6 +211,7 @@ class UserController {
         phoneVerifiedAt: user.phone_verified_at,
         emailVerified: user.email_verified,
         profileCompleted: user.profile_completed,
+        metroArea: user.metro_area,
         createdAt: user.created_at,
         updatedAt: user.updated_at,
         lastLoginAt: user.last_login_at
