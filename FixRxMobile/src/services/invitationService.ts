@@ -22,7 +22,7 @@ export interface Invitation {
   recipientPhone?: string;
   recipientEmail?: string;
   type: 'contractor' | 'friend';
-  status: 'pending' | 'sent' | 'accepted' | 'declined';
+  status: 'pending' | 'sent' | 'accepted' | 'declined' | 'failed';
   message?: string;
   createdAt: string;
   sentAt?: string;
@@ -73,7 +73,39 @@ class InvitationService {
     message?: string;
     method: 'sms' | 'email' | 'both';
   }): Promise<ApiResponse<Invitation>> {
-    const backendCall = () => apiClient.post(API_ENDPOINTS.INVITATIONS.SEND, invitationData);
+    const backendCall = async (): Promise<ApiResponse<Invitation>> => {
+      if (invitationData.type === 'contractor') {
+        // Use contractor SMS endpoint
+        const payload = {
+          phoneNumber: invitationData.contact.phone,
+          recipientName: invitationData.contact.name,
+          customMessage: invitationData.message,
+          serviceCategory: '' // Optional
+        };
+        const response = await apiClient.post('/api/v1/invitations/contractor-sms', payload);
+        // Transform backend response to our Invitation format
+        const responseData = response.data as any;
+        return {
+          success: response.success,
+          message: response.message,
+          data: {
+            id: responseData?.invitationId || `invitation_${Date.now()}`,
+            recipientName: invitationData.contact.name,
+            recipientPhone: invitationData.contact.phone,
+            recipientEmail: invitationData.contact.email,
+            type: invitationData.type,
+            status: responseData?.status === 'pending' ? 'sent' : 'sent',
+            message: invitationData.message,
+            createdAt: new Date().toISOString(),
+            sentAt: new Date().toISOString(),
+          }
+        } as ApiResponse<Invitation>;
+      } else {
+        // Use generic invitation endpoint for friends
+        const response = await apiClient.post(API_ENDPOINTS.INVITATIONS.SEND, invitationData);
+        return response as ApiResponse<Invitation>;
+      }
+    };
     
     const mockData: Invitation = {
       id: `invitation_${Date.now()}`,
@@ -92,7 +124,54 @@ class InvitationService {
 
   // Send bulk invitations
   async sendBulkInvitations(invitationData: InvitationData): Promise<ApiResponse<BulkInvitationResult>> {
-    const backendCall = () => apiClient.post(API_ENDPOINTS.INVITATIONS.BULK, invitationData);
+    const backendCall = async (): Promise<ApiResponse<BulkInvitationResult>> => {
+      if (invitationData.type === 'contractor') {
+        // Send individual contractor invitations
+        const results = await Promise.allSettled(
+          invitationData.contacts.map(contact => 
+            this.sendInvitation({
+              contact,
+              type: 'contractor',
+              message: invitationData.message,
+              method: invitationData.method
+            })
+          )
+        );
+
+        const successful = results.filter(r => r.status === 'fulfilled').length;
+        const failed = results.filter(r => r.status === 'rejected').length;
+
+        const invitations: Invitation[] = results.map((result, index) => {
+          if (result.status === 'fulfilled') {
+            return result.value.data!;
+          } else {
+            return {
+              id: `failed_${Date.now()}_${index}`,
+              recipientName: invitationData.contacts[index].name,
+              recipientPhone: invitationData.contacts[index].phone,
+              type: invitationData.type,
+              status: 'failed' as const,
+              message: invitationData.message,
+              createdAt: new Date().toISOString(),
+            } as Invitation;
+          }
+        });
+
+        return {
+          success: true,
+          data: {
+            totalSent: invitationData.contacts.length,
+            successful,
+            failed,
+            invitations
+          }
+        } as ApiResponse<BulkInvitationResult>;
+      } else {
+        // Use bulk endpoint for friends
+        const response = await apiClient.post(API_ENDPOINTS.INVITATIONS.BULK, invitationData);
+        return response as ApiResponse<BulkInvitationResult>;
+      }
+    };
     
     const mockInvitations: Invitation[] = invitationData.contacts.map((contact, index) => ({
       id: `invitation_${Date.now()}_${index}`,
@@ -118,7 +197,10 @@ class InvitationService {
 
   // Get sent invitations
   async getSentInvitations(): Promise<ApiResponse<Invitation[]>> {
-    const backendCall = () => apiClient.get(API_ENDPOINTS.INVITATIONS.SENT);
+    const backendCall = async (): Promise<ApiResponse<Invitation[]>> => {
+      const response = await apiClient.get(API_ENDPOINTS.INVITATIONS.SENT);
+      return response as ApiResponse<Invitation[]>;
+    };
     
     const mockData: Invitation[] = [
       {
@@ -162,7 +244,10 @@ class InvitationService {
 
   // Get received invitations
   async getReceivedInvitations(): Promise<ApiResponse<Invitation[]>> {
-    const backendCall = () => apiClient.get(API_ENDPOINTS.INVITATIONS.RECEIVED);
+    const backendCall = async (): Promise<ApiResponse<Invitation[]>> => {
+      const response = await apiClient.get(API_ENDPOINTS.INVITATIONS.RECEIVED);
+      return response as ApiResponse<Invitation[]>;
+    };
     
     const mockData: Invitation[] = [
       {
@@ -183,7 +268,10 @@ class InvitationService {
 
   // Accept invitation
   async acceptInvitation(invitationId: string): Promise<ApiResponse<Invitation>> {
-    const backendCall = () => apiClient.put(`${API_ENDPOINTS.INVITATIONS.RECEIVED}/${invitationId}/accept`);
+    const backendCall = async (): Promise<ApiResponse<Invitation>> => {
+      const response = await apiClient.put(`${API_ENDPOINTS.INVITATIONS.RECEIVED}/${invitationId}/accept`);
+      return response as ApiResponse<Invitation>;
+    };
     
     const mockData: Invitation = {
       id: invitationId,
@@ -203,7 +291,10 @@ class InvitationService {
 
   // Decline invitation
   async declineInvitation(invitationId: string): Promise<ApiResponse<Invitation>> {
-    const backendCall = () => apiClient.put(`${API_ENDPOINTS.INVITATIONS.RECEIVED}/${invitationId}/decline`);
+    const backendCall = async (): Promise<ApiResponse<Invitation>> => {
+      const response = await apiClient.put(`${API_ENDPOINTS.INVITATIONS.RECEIVED}/${invitationId}/decline`);
+      return response as ApiResponse<Invitation>;
+    };
     
     const mockData: Invitation = {
       id: invitationId,
@@ -230,7 +321,17 @@ class InvitationService {
     pendingSent: number;
     pendingReceived: number;
   }>> {
-    const backendCall = () => apiClient.get(`${API_ENDPOINTS.INVITATIONS.SENT}/stats`);
+    const backendCall = async () => {
+      const response = await apiClient.get(`${API_ENDPOINTS.INVITATIONS.SENT}/stats`);
+      return response as ApiResponse<{
+        totalSent: number;
+        totalReceived: number;
+        acceptedSent: number;
+        acceptedReceived: number;
+        pendingSent: number;
+        pendingReceived: number;
+      }>;
+    };
     
     const mockData = {
       totalSent: 15,
@@ -246,7 +347,10 @@ class InvitationService {
 
   // Resend invitation
   async resendInvitation(invitationId: string): Promise<ApiResponse<Invitation>> {
-    const backendCall = () => apiClient.put(`${API_ENDPOINTS.INVITATIONS.SENT}/${invitationId}/resend`);
+    const backendCall = async (): Promise<ApiResponse<Invitation>> => {
+      const response = await apiClient.put(`${API_ENDPOINTS.INVITATIONS.SENT}/${invitationId}/resend`);
+      return response as ApiResponse<Invitation>;
+    };
     
     const mockData: Invitation = {
       id: invitationId,
@@ -264,8 +368,11 @@ class InvitationService {
   }
 
   // Cancel invitation
-  async cancelInvitation(invitationId: string): Promise<ApiResponse> {
-    const backendCall = () => apiClient.delete(`${API_ENDPOINTS.INVITATIONS.SENT}/${invitationId}`);
+  async cancelInvitation(invitationId: string): Promise<ApiResponse<any>> {
+    const backendCall = async (): Promise<ApiResponse<any>> => {
+      const response = await apiClient.delete(`${API_ENDPOINTS.INVITATIONS.SENT}/${invitationId}`);
+      return response as ApiResponse<any>;
+    };
     
     return this.useBackendOrMock(backendCall, { message: 'Invitation cancelled successfully' });
   }

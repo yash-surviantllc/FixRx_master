@@ -11,7 +11,9 @@
 .env.production
 .env.staging
 **/.env
-**/.env
+**/.env.*
+env
+.env*
 
 # Backup environment files
 .env.backup
@@ -265,7 +267,7 @@ Frontend/node_modules/
 Frontend/dist/
 Frontend/build/
 Frontend/.vite/
-Frontend/.env.local
+#Frontend/.env.local
 
 # Backend specific (Node.js)
 Backend/node_modules/
@@ -273,14 +275,14 @@ Backend/dist/
 Backend/logs/
 Backend/uploads/
 Backend/tmp/
-Backend/.env
+#Backend/.env
 
 # Mobile app specific (React Native)
 FixRxMobile/.expo/
 FixRxMobile/node_modules/
 FixRxMobile/web-build/
 FixRxMobile/dist/
-FixRxMobile/.env.local
+#FixRxMobile/.env.local
 
 # =============================================================================
 # DATABASE FILES
@@ -441,19 +443,23 @@ Dockerfile.dev
 # - Never commit API keys or passwords
 # - Keep this file updated as project evolves
 
-# Environment files (never commit these)
+# Environment files - NEVER COMMIT THESE
 .env
 .env.local
 .env*.local
 env
 Backend/.env
 Backend/env
-Frontend/.env
 FixRxMobile/.env
+FixRxMobile/.env.local
 
-# Environment files
-.env
-.env.local
-env
-Backend/.env
-Backend/env
+# API Keys and Secrets
+*.key
+*.pem
+*.p12
+*.pfx
+service-account-*.json
+firebase-adminsdk-*.json
+aws-credentials.json
+twilio-config.json
+sendgrid-config.json

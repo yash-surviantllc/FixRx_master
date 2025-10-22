@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useAppContext } from '../context/AppContext';
 import { RootStackParamList } from '../types/navigation';
+import { invitationService } from '../services/invitationService';
 
 type MessagePreviewScreenNavigationProp = StackNavigationProp<RootStackParamList, 'MessagePreview'>;
 type MessagePreviewScreenRouteProp = RouteProp<RootStackParamList, 'MessagePreview'>;
@@ -37,6 +38,7 @@ const MessagePreviewScreen: React.FC = () => {
   const [includeReferralCode, setIncludeReferralCode] = useState(true);
   const [sendNow, setSendNow] = useState(true);
   const [showPersonalNote, setShowPersonalNote] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   // Generate message based on type
   const generateMessage = () => {
@@ -71,7 +73,9 @@ const MessagePreviewScreen: React.FC = () => {
   const messageLimit = 160;
   const messagesNeeded = Math.ceil(characterCount / messageLimit);
 
-  const handleSendInvitations = () => {
+  const handleSendInvitations = async () => {
+    if (isSending) return;
+    
     try {
       console.log('Send button pressed');
       console.log('Selected contacts:', selectedContacts?.length || 0);
@@ -87,21 +91,49 @@ const MessagePreviewScreen: React.FC = () => {
         );
         return;
       }
+
+      setIsSending(true);
+
+      // Prepare invitation data
+      const invitationData = {
+        contacts: selectedContacts.map(contact => ({
+          id: contact.id,
+          name: contact.name,
+          phone: contact.phone,
+          email: contact.email || undefined
+        })),
+        type: inviteType,
+        message: personalNote || undefined,
+        method: 'sms' as const // Default to SMS for now
+      };
+
+      console.log('Sending invitations with data:', invitationData);
+
+      // Send invitations to backend
+      const result = await invitationService.sendBulkInvitations(invitationData);
+
+      if (result.success) {
+        console.log('Invitations sent successfully:', result.data);
+        
+        // Navigate to success screen
+        navigation.navigate('InvitationSuccess', {
+          invitationCount: result.data?.successful || contactCount,
+          inviteType: inviteType
+        });
+      } else {
+        throw new Error(result.message || 'Failed to send invitations');
+      }
       
-      // Direct navigation without Alert for now
-      // TODO: Add confirmation dialog back once navigation is stable
-      console.log('Navigating to InvitationSuccess');
-      navigation.navigate('InvitationSuccess', {
-        invitationCount: contactCount,
-        inviteType: inviteType
-      });
     } catch (error) {
       console.error('Error sending invitations:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Please try again.';
       Alert.alert(
         'Error',
-        'Failed to send invitations. Please try again.',
+        `Failed to send invitations: ${errorMessage}`,
         [{ text: 'OK' }]
       );
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -324,13 +356,27 @@ const MessagePreviewScreen: React.FC = () => {
 
       {/* Send Button */}
       <TouchableOpacity 
-        style={[styles.sendButton, { backgroundColor: colors.primary }]}
+        style={[
+          styles.sendButton, 
+          { 
+            backgroundColor: isSending ? colors.border : colors.primary,
+            opacity: isSending ? 0.7 : 1
+          }
+        ]}
         onPress={handleSendInvitations}
         activeOpacity={0.8}
+        disabled={isSending}
       >
-        <Ionicons name="send" size={20} color="#FFFFFF" />
+        {isSending ? (
+          <Ionicons name="hourglass-outline" size={20} color="#FFFFFF" />
+        ) : (
+          <Ionicons name="send" size={20} color="#FFFFFF" />
+        )}
         <Text style={styles.sendButtonText}>
-          Send {selectedContacts?.length || 0} invitation{selectedContacts?.length !== 1 ? 's' : ''}
+          {isSending 
+            ? 'Sending...' 
+            : `Send ${selectedContacts?.length || 0} invitation${selectedContacts?.length !== 1 ? 's' : ''}`
+          }
         </Text>
       </TouchableOpacity>
     </SafeAreaView>
