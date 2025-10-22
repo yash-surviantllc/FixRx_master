@@ -144,100 +144,138 @@ const validateConnectionRequest = [
  * @desc Create a connection request from consumer to vendor
  * @access Private (Consumer)
  */
-router.post('/connections/request', authenticateToken, validateConnectionRequest, async (req, res) => {
-  // Check validation results
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({
-      success: false,
-      error: {
-        code: 'VALIDATION_ERROR',
-        message: 'Invalid input data',
-        details: errors.array().map(err => ({
-          field: err.path || err.param,
-          message: err.msg
-        }))
-      }
-    });
-  }
-
-  const client = new Client(dbConfig);
-  const { vendorId, serviceId, message, projectDescription, budgetMin, budgetMax, preferredStartDate, urgency } = req.body;
-  
-  try {
-    await client.connect();
+router.post('/connections/request', 
+  authenticateToken,
+  [
+    body('vendorId').isInt().withMessage('Vendor ID must be a valid integer'),
+    body('serviceId').optional().isInt().withMessage('Service ID must be a valid integer'),
+    body('message').isString().trim().isLength({ min: 10, max: 1000 })
+      .withMessage('Message must be between 10 and 1000 characters'),
+    body('projectDescription').optional().isString().trim(),
+    body('budgetMin').optional().isFloat({ min: 0 }),
+    body('budgetMax').optional().isFloat({ min: 0 }),
+    body('preferredStartDate').optional().isISO8601(),
+    body('urgency').optional().isIn(['LOW', 'MEDIUM', 'HIGH'])
+  ],
+  async (req, res) => {
+    const client = new Client(dbConfig);
+    const errors = validationResult(req);
     
-    // Check if consumer
-    const userResult = await client.query('SELECT user_type FROM users WHERE id = $1', [req.user.id]);
-    if (userResult.rows[0]?.user_type !== 'CONSUMER') {
-      return res.status(403).json({
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
         success: false,
-        error: { code: 'FORBIDDEN', message: 'Only consumers can create connection requests' }
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid input data',
+          details: errors.array()
+        }
       });
     }
-
-    // Create connection request
-    const query = `
-      INSERT INTO connection_requests (
-        consumer_id, vendor_id, service_id, message, project_description, 
-        budget_range_min, budget_range_max, preferred_start_date, urgency,
-        status, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'PENDING', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      RETURNING *
-    `;
+    const { vendorId, serviceId, message, projectDescription, budgetMin, budgetMax, preferredStartDate, urgency } = req.body;
     
-    const values = [
-      req.user.id,
-      vendorId,
-      serviceId || null,
-      message,
-      projectDescription || null,
-      budgetMin || null,
-      budgetMax || null,
-      preferredStartDate || null,
-      (urgency || 'MEDIUM').toUpperCase()
-    ];
-
-    const result = await client.query(query, values);
-    const connectionRequest = result.rows[0];
-    
-    // Emit service created event
     try {
-      socketManager.emitServiceCreated({
-        id: connectionRequest.id,
-        consumerId: connectionRequest.consumer_id,
-        vendorId: connectionRequest.vendor_id,
-        serviceId: connectionRequest.service_id,
-        message: connectionRequest.message,
-        status: connectionRequest.status,
-        createdAt: connectionRequest.created_at
+      console.log('🔵 /connections/request route hit');
+      console.log('🔍 Request headers:', JSON.stringify(req.headers, null, 2));
+      console.log('📦 Request body:', JSON.stringify(req.body, null, 2));
+      console.log('✅ User authenticated:', req.user);
+      
+      // Check validation results
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        console.error('🔴 Validation errors:', errors.array());
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid input data',
+            details: errors.array()
+          }
+        });
+      }
+      
+      console.log('✅ Request validated, proceeding with connection request...');
+      
+      await client.connect();
+      
+      // Check if user is a consumer
+      const userResult = await client.query('SELECT user_type FROM users WHERE id = $1', [req.user.id]);
+      if (userResult.rows[0]?.user_type !== 'CONSUMER') {
+        return res.status(403).json({
+          success: false,
+          error: { 
+            code: 'FORBIDDEN', 
+            message: 'Only consumers can create connection requests' 
+          }
+        });
+      }
+
+      // Create connection request
+      const query = `
+        INSERT INTO connection_requests (
+          consumer_id, vendor_id, service_id, message, project_description, 
+          budget_range_min, budget_range_max, preferred_start_date, urgency,
+          status, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'PENDING', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING *
+      `;
+      
+      const values = [
+        req.user.id,
+        vendorId,
+        serviceId || null,
+        message,
+        projectDescription || null,
+        budgetMin || null,
+        budgetMax || null,
+        preferredStartDate || null,
+        (urgency || 'MEDIUM').toUpperCase()
+      ];
+
+      const result = await client.query(query, values);
+      const connectionRequest = result.rows[0];
+      
+      // Emit service created event
+      try {
+        socketManager.emitServiceCreated({
+          id: connectionRequest.id,
+          consumerId: connectionRequest.consumer_id,
+          vendorId: connectionRequest.vendor_id,
+          serviceId: connectionRequest.service_id,
+          message: connectionRequest.message,
+          status: connectionRequest.status,
+          createdAt: connectionRequest.created_at
+        });
+      } catch (socketError) {
+        console.error('Failed to emit service:created event:', socketError);
+        // Don't fail the request if socket emission fails
+      }
+
+      res.status(201).json({
+        success: true,
+        message: 'Connection request created successfully',
+        data: { connectionRequest }
       });
-    } catch (socketError) {
-      console.error('Failed to emit service:created event:', socketError);
-      // Don't fail the request if socket emission fails
+    } catch (error) {
+      console.error('Create connection request error:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'SERVER_ERROR',
+          message: 'Failed to process connection request',
+          details: error.message
+        }
+      });
+    } finally {
+      try {
+        if (client) {
+          await client.end();
+        }
+      } catch (e) {
+        console.error('Error closing database connection:', e);
+      }
     }
-
-    res.status(201).json({
-      success: true,
-      message: 'Connection request created successfully',
-      data: {
-        connectionRequest
-      }
-    });
-
-  } catch (error) {
-    console.error('Create connection request error:', error);
-    return res.status(500).json({
-      success: false,
-      error: {
-        code: 'DATABASE_ERROR',
-        message: 'Failed to create connection request'
-      }
-    });
-  } finally {
-    await client.end();
   }
-});
+);
 
 /**
  * @route GET /api/v1/connections/requests
